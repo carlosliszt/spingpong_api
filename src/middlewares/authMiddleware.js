@@ -7,17 +7,16 @@ const authMiddleware = (req, res, next) => {
         if (!authHeader) {
             return res.status(401).json({
                 success: false,
-                message: 'Token não fornecido'
+                message: 'Token nao fornecido'
             });
         }
 
-        // Bearer <token>
         const parts = authHeader.split(' ');
 
         if (parts.length !== 2) {
             return res.status(401).json({
                 success: false,
-                message: 'Formato de token inválido'
+                message: 'Formato de token invalido'
             });
         }
 
@@ -34,22 +33,22 @@ const authMiddleware = (req, res, next) => {
             if (err) {
                 return res.status(401).json({
                     success: false,
-                    message: 'Token inválido ou expirado'
+                    message: 'Token invalido ou expirado'
                 });
             }
 
             req.userId = decoded.id;
-            req.username = decoded.username;
+            req.userEmail = decoded.email;
+            req.userRole = decoded.papel;
 
             next();
         });
     } catch (error) {
         return res.status(401).json({
             success: false,
-            message: 'Falha na autenticação'
+            message: 'Falha na autenticacao'
         });
     }
 };
 
 module.exports = authMiddleware;
-

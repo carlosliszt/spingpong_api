@@ -3,12 +3,12 @@ const AuthService = require('../services/AuthService');
 class AuthController {
     async register(req, res, next) {
         try {
-            const { username, email, password } = req.body;
-            const result = await AuthService.register(username, email, password);
+            const { nome, email, senha } = req.body;
+            const result = await AuthService.register(nome, email, senha);
 
             res.status(201).json({
                 success: true,
-                message: 'Usuário registrado com sucesso',
+                message: 'Usuario registrado com sucesso',
                 data: result
             });
         } catch (error) {
@@ -18,8 +18,8 @@ class AuthController {
 
     async login(req, res, next) {
         try {
-            const { username, password } = req.body;
-            const result = await AuthService.login(username, password);
+            const { email, senha } = req.body;
+            const result = await AuthService.login(email, senha);
 
             res.status(200).json({
                 success: true,
@@ -37,7 +37,8 @@ class AuthController {
                 success: true,
                 data: {
                     id: req.userId,
-                    username: req.username
+                    email: req.userEmail,
+                    papel: req.userRole
                 }
             });
         } catch (error) {
@@ -47,4 +48,3 @@ class AuthController {
 }
 
 module.exports = new AuthController();
-

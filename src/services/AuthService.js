@@ -1,73 +1,44 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const UserDAO = require('../dao/UserDAO');
+const UsuarioDAO = require('../dao/UsuarioDAO');
+const httpError = require('../utils/httpError');
 
 class AuthService {
-    async register(username, email, password) {
-        // Verificar se usuário já existe
-        const existingUser = await UserDAO.findByUsername(username);
-        if (existingUser) {
-            throw new Error('Usuário já existe');
+    async register(nome, email, senha) {
+        const existingEmail = await UsuarioDAO.findByEmail(email);
+        if (existingEmail) {
+            throw httpError('Email ja cadastrado', 409);
         }
 
-        if (email) {
-            const existingEmail = await UserDAO.findByEmail(email);
-            if (existingEmail) {
-                throw new Error('Email já cadastrado');
-            }
-        }
+        const senha_hash = await bcrypt.hash(senha, 10);
+        const usuario = await UsuarioDAO.create({ nome, email, senha_hash });
+        const token = this.generateToken(usuario);
 
-        // Hash da senha
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Criar usuário
-        const user = await UserDAO.create({
-            username,
-            email,
-            password: hashedPassword
-        });
-
-        // Gerar token
-        const token = this.generateToken(user);
-
-        return { user: user.toJSON(), token };
+        return { usuario: usuario.toJSON(), token };
     }
 
-    async login(username, password) {
-        // Buscar usuário
-        const user = await UserDAO.findByUsername(username);
-        if (!user) {
-            throw new Error('Credenciais inválidas');
+    async login(email, senha) {
+        const usuario = await UsuarioDAO.findByEmail(email);
+        if (!usuario) {
+            throw httpError('Credenciais invalidas', 401);
         }
 
-        // Verificar senha
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
-            throw new Error('Credenciais inválidas');
+        const isPasswordValid = await bcrypt.compare(senha, usuario.senha_hash);
+        if (!isPasswordValid) {
+            throw httpError('Credenciais invalidas', 401);
         }
 
-        // Gerar token
-        const token = this.generateToken(user);
-
-        return { user: user.toJSON(), token };
+        const token = this.generateToken(usuario);
+        return { usuario: usuario.toJSON(), token };
     }
 
-    generateToken(user) {
+    generateToken(usuario) {
         return jwt.sign(
-            { id: user.id, username: user.username },
+            { id: usuario.id, email: usuario.email, papel: usuario.papel },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
         );
-    }
-
-    verifyToken(token) {
-        try {
-            return jwt.verify(token, process.env.JWT_SECRET);
-        } catch (error) {
-            throw new Error('Token inválido');
-        }
     }
 }
 
 module.exports = new AuthService();
-

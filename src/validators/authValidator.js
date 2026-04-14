@@ -1,31 +1,31 @@
 const { body } = require('express-validator');
 
 const registerValidator = [
-    body('username')
-        .notEmpty().withMessage('Username é obrigatório')
-        .isLength({ min: 3, max: 50 }).withMessage('Username deve ter entre 3 e 50 caracteres')
-        .matches(/^[a-zA-Z0-9_]+$/).withMessage('Username só pode conter letras, números e underline'),
+    body('nome')
+        .notEmpty().withMessage('Nome e obrigatorio')
+        .isLength({ min: 3, max: 120 }).withMessage('Nome deve ter entre 3 e 120 caracteres'),
 
     body('email')
-        .optional()
-        .isEmail().withMessage('Email inválido')
+        .notEmpty().withMessage('Email e obrigatorio')
+        .isEmail().withMessage('Email invalido')
         .normalizeEmail(),
 
-    body('password')
-        .notEmpty().withMessage('Senha é obrigatória')
-        .isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres')
+    body('senha')
+        .notEmpty().withMessage('Senha e obrigatoria')
+        .isLength({ min: 6 }).withMessage('Senha deve ter no minimo 6 caracteres')
 ];
 
 const loginValidator = [
-    body('username')
-        .notEmpty().withMessage('Username é obrigatório'),
+    body('email')
+        .notEmpty().withMessage('Email e obrigatorio')
+        .isEmail().withMessage('Email invalido')
+        .normalizeEmail(),
 
-    body('password')
-        .notEmpty().withMessage('Senha é obrigatória')
+    body('senha')
+        .notEmpty().withMessage('Senha e obrigatoria')
 ];
 
 module.exports = {
     registerValidator,
     loginValidator
 };
-

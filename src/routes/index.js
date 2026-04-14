@@ -2,33 +2,38 @@ const express = require('express');
 const router = express.Router();
 
 const authRoutes = require('./authRoutes');
-const userRoutes = require('./userRoutes');
-const poetRoutes = require('./poetRoutes');
-const bookRoutes = require('./bookRoutes');
-const poemRoutes = require('./poemRoutes');
+const usuariosRoutes = require('./usuariosRoutes');
+const atletasRoutes = require('./atletasRoutes');
+const competicoesRoutes = require('./competicoesRoutes');
+const inscricoesRoutes = require('./inscricoesRoutes');
+const jogosRoutes = require('./jogosRoutes');
+const historicosRoutes = require('./historicosRoutes');
 
 // root
 router.get('/', (req, res) => {
     res.json({
         success: true,
-        message: 'API de Poesias - Sistema de Gerenciamento de Poetas, Livros e Poemas',
-        version: '1.0.0',
+        message: 'API Spingpong - Gestao de atletas, competicoes, jogos e ranking',
+        version: '2.0.0',
         endpoints: {
             auth: '/api/auth',
-            users: '/api/users',
-            poets: '/api/poets',
-            books: '/api/books',
-            poems: '/api/poems'
+            usuarios: '/api/usuarios',
+            atletas: '/api/atletas',
+            competicoes: '/api/competicoes',
+            inscricoes: '/api/inscricoes',
+            jogos: '/api/jogos',
+            historicos: '/api/historicos'
         }
     });
 });
 
 // demais rotas
 router.use('/auth', authRoutes);
-router.use('/users', userRoutes);
-router.use('/poets', poetRoutes);
-router.use('/books', bookRoutes);
-router.use('/poems', poemRoutes);
+router.use('/usuarios', usuariosRoutes);
+router.use('/atletas', atletasRoutes);
+router.use('/competicoes', competicoesRoutes);
+router.use('/inscricoes', inscricoesRoutes);
+router.use('/jogos', jogosRoutes);
+router.use('/historicos', historicosRoutes);
 
 module.exports = router;
-

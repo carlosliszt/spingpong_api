@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "API Poesias",
-    "description": "API REST para gerenciamento de poetas, livros e poemas",
-    "version": "1.0.0"
+    "name": "Spingpong API",
+    "description": "Colecao de endpoints da API de atletas, competicoes e jogos",
+    "version": "2.0.0"
   },
   "variable": [
     {
@@ -24,15 +24,10 @@
           "name": "Register",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"teste\",\n  \"email\": \"teste@email.com\",\n  \"password\": \"123456\"\n}"
+              "raw": "{\n  \"nome\": \"Admin\",\n  \"email\": \"admin@spingpong.com\",\n  \"senha\": \"123456\"\n}"
             },
             "url": "{{baseUrl}}/auth/register"
           }
@@ -41,15 +36,10 @@
           "name": "Login",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+              "raw": "{\n  \"email\": \"admin@spingpong.com\",\n  \"senha\": \"123456\"\n}"
             },
             "url": "{{baseUrl}}/auth/login"
           }
@@ -58,614 +48,75 @@
           "name": "Me",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/auth/me"
           }
         }
       ]
     },
     {
-      "name": "Poets",
+      "name": "Atletas",
       "item": [
+        { "name": "Listar", "request": { "method": "GET", "url": "{{baseUrl}}/atletas" } },
+        { "name": "Ranking", "request": { "method": "GET", "url": "{{baseUrl}}/atletas/ranking" } },
         {
-          "name": "Get All Poets",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/poets"
-          }
-        },
-        {
-          "name": "Get Poet By ID",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/poets/1"
-          }
-        },
-        {
-          "name": "Get Poet With Books",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/poets/1/books"
-          }
-        },
-        {
-          "name": "Create Poet",
+          "name": "Criar",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Machado de Assis\",\n  \"birth_year\": 1839,\n  \"death_year\": 1908,\n  \"nationality\": \"Brasileira\",\n  \"literary_movement\": \"Realismo\",\n  \"biography\": \"Escritor brasileiro, considerado o maior nome da literatura nacional.\"\n}"
+              "raw": "{\n  \"nome\": \"Atleta Demo\",\n  \"email\": \"atleta.demo@spingpong.com\"\n}"
             },
-            "url": "{{baseUrl}}/poets"
+            "url": "{{baseUrl}}/atletas"
           }
         }
       ]
     },
     {
-      "name": "Books",
+      "name": "Competicoes",
       "item": [
+        { "name": "Listar", "request": { "method": "GET", "url": "{{baseUrl}}/competicoes" } },
         {
-          "name": "Get All Books",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/books"
-          }
-        },
-        {
-          "name": "Get Book By ID",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/books/1"
-          }
-        },
-        {
-          "name": "Get Book With Poems",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/books/1/poems"
-          }
-        },
-        {
-          "name": "Create Book",
+          "name": "Criar",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Novo Livro\",\n  \"poet_id\": 1,\n  \"publication_year\": 2024,\n  \"publisher\": \"Editora Teste\",\n  \"pages\": 150,\n  \"language\": \"Português\"\n}"
+              "raw": "{\n  \"nome\": \"Sping Open 2026\",\n  \"tipo\": \"SPING_OPEN\",\n  \"data_inicio\": \"2026-05-01\"\n}"
             },
-            "url": "{{baseUrl}}/books"
+            "url": "{{baseUrl}}/competicoes"
           }
         }
       ]
     },
     {
-      "name": "Poems",
+      "name": "Jogos",
       "item": [
+        { "name": "Listar", "request": { "method": "GET", "url": "{{baseUrl}}/jogos" } },
         {
-          "name": "Get All Poems",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/poems"
-          }
-        },
-        {
-          "name": "Get Poem By ID",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/poems/1"
-          }
-        },
-        {
-          "name": "Create Poem",
+          "name": "Criar",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Novo Poema\",\n  \"book_id\": 1,\n  \"content\": \"Versos do poema...\\nMais versos...\",\n  \"verses_count\": 4,\n  \"stanzas_count\": 1,\n  \"style\": \"Verso Livre\",\n  \"theme\": \"Amor\"\n}"
+              "raw": "{\n  \"competicao_id\": 1,\n  \"fase\": \"GRUPOS\",\n  \"atleta_a_id\": 1,\n  \"atleta_b_id\": 2\n}"
             },
-            "url": "{{baseUrl}}/poems"
+            "url": "{{baseUrl}}/jogos"
           }
         }
       ]
     }
   ]
 }
-# API REST de Poesias - Node.js + Express + MySQL
-
-API REST completa para gerenciamento de poetas, livros e poemas com autenticação JWT.
-
-## 📋 Arquitetura
-
-A API segue o padrão **MVC-S (Model-View-Controller-Service)** com:
-- **Models**: Entidades de dados
-- **DAO (Data Access Object)**: Camada de acesso ao banco de dados
-- **Services**: Lógica de negócio
-- **Controllers**: Controle de requisições HTTP
-- **Middlewares**: Autenticação, validação e tratamento de erros
-- **Routes**: Roteamento de endpoints
-
-## 🚀 Tecnologias
-
-- Node.js
-- Express
-- MySQL2
-- JWT (JSON Web Tokens)
-- Bcryptjs
-- Express-validator
-- Helmet (Segurança)
-- Morgan (Logs)
-- CORS
-
-## 📁 Estrutura do Projeto
-
-```
-poets_api/
-├── src/
-│   ├── config/
-│   │   └── database.js          # Configuração do MySQL
-│   ├── models/
-│   │   ├── User.js              # Model de usuário
-│   │   ├── Poet.js              # Model de poeta
-│   │   ├── Book.js              # Model de livro
-│   │   └── Poem.js              # Model de poema
-│   ├── dao/
-│   │   ├── UserDAO.js           # DAO de usuário
-│   │   ├── PoetDAO.js           # DAO de poeta
-│   │   ├── BookDAO.js           # DAO de livro
-│   │   └── PoemDAO.js           # DAO de poema
-│   ├── services/
-│   │   ├── AuthService.js       # Serviço de autenticação
-│   │   ├── UserService.js       # Serviço de usuário
-│   │   ├── PoetService.js       # Serviço de poeta
-│   │   ├── BookService.js       # Serviço de livro
-│   │   └── PoemService.js       # Serviço de poema
-│   ├── controllers/
-│   │   ├── AuthController.js    # Controller de autenticação
-│   │   ├── UserController.js    # Controller de usuário
-│   │   ├── PoetController.js    # Controller de poeta
-│   │   ├── BookController.js    # Controller de livro
-│   │   └── PoemController.js    # Controller de poema
-│   ├── middlewares/
-│   │   ├── authMiddleware.js    # Middleware de autenticação JWT
-│   │   ├── validationMiddleware.js  # Middleware de validação
-│   │   └── errorMiddleware.js   # Middleware de erro
-│   ├── validators/
-│   │   ├── authValidator.js     # Validador de autenticação
-│   │   ├── poetValidator.js     # Validador de poeta
-│   │   ├── bookValidator.js     # Validador de livro
-│   │   └── poemValidator.js     # Validador de poema
-│   ├── routes/
-│   │   ├── index.js             # Roteador principal
-│   │   ├── authRoutes.js        # Rotas de autenticação
-│   │   ├── userRoutes.js        # Rotas de usuário
-│   │   ├── poetRoutes.js        # Rotas de poeta
-│   │   ├── bookRoutes.js        # Rotas de livro
-│   │   └── poemRoutes.js        # Rotas de poema
-│   └── app.js                   # Configuração do Express
-├── docs/
-│   └── schema.sql               # Schema do banco de dados
-├── .env                         # Variáveis de ambiente
-├── package.json
-└── server.js                    # Entrada da aplicação
-```
-
-## ⚙️ Instalação e Configuração
-
-### 1. Instalar dependências
-```bash
-npm install
-```
-
-### 2. Configurar banco de dados
-Execute o script SQL em `docs/schema.sql` no seu MySQL:
-```bash
-mysql -u root -p < docs/schema.sql
-```
-
-### 3. Configurar variáveis de ambiente
-O arquivo `.env` já está configurado. Ajuste se necessário:
-```env
-NODE_ENV=development
-PORT=3000
-
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=poesia
-
-JWT_SECRET=chave_super_secreta
-JWT_EXPIRES_IN=24h
-```
-
-### 4. Iniciar servidor
-```bash
-# Desenvolvimento (com nodemon)
-npm run dev
-
-# Produção
-npm start
-```
-
-## 📚 Endpoints da API
-
-### 🔐 Autenticação (`/api/auth`)
-
-#### Registrar usuário
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "username": "usuario",
-  "email": "email@example.com",
-  "password": "senha123"
-}
-```
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "username": "usuario",
-  "password": "senha123"
-}
-```
-
-#### Obter usuário autenticado
-```http
-GET /api/auth/me
-Authorization: Bearer {token}
-```
-
-### 👥 Usuários (`/api/users`) - 🔒 Protegido
-
-#### Listar todos os usuários
-```http
-GET /api/users
-Authorization: Bearer {token}
-```
-
-#### Obter usuário por ID
-```http
-GET /api/users/:id
-Authorization: Bearer {token}
-```
-
-#### Criar usuário
-```http
-POST /api/users
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "username": "novo_usuario",
-  "email": "email@example.com",
-  "password": "senha123"
-}
-```
-
-#### Atualizar usuário
-```http
-PUT /api/users/:id
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "username": "usuario_atualizado",
-  "email": "novo_email@example.com"
-}
-```
-
-#### Deletar usuário
-```http
-DELETE /api/users/:id
-Authorization: Bearer {token}
-```
-
-### 📖 Poetas (`/api/poets`)
-
-#### Listar todos os poetas
-```http
-GET /api/poets
-# Filtros opcionais:
-GET /api/poets?nationality=Brasileira
-GET /api/poets?movement=Modernismo
-```
-
-#### Obter poeta por ID
-```http
-GET /api/poets/:id
-```
-
-#### Obter poeta com seus livros
-```http
-GET /api/poets/:id/books
-```
-
-#### Criar poeta - 🔒 Protegido
-```http
-POST /api/poets
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "name": "Nome do Poeta",
-  "pseudonym": "Pseudônimo",
-  "birth_year": 1900,
-  "death_year": 1980,
-  "nationality": "Brasileira",
-  "literary_movement": "Modernismo",
-  "biography": "Biografia do poeta...",
-  "photo_url": "https://example.com/photo.jpg"
-}
-```
-
-#### Atualizar poeta - 🔒 Protegido
-```http
-PUT /api/poets/:id
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "name": "Nome Atualizado"
-}
-```
-
-#### Deletar poeta - 🔒 Protegido
-```http
-DELETE /api/poets/:id
-Authorization: Bearer {token}
-```
-
-### 📚 Livros (`/api/books`)
-
-#### Listar todos os livros
-```http
-GET /api/books
-# Filtro opcional:
-GET /api/books?poet_id=1
-```
-
-#### Obter livro por ID
-```http
-GET /api/books/:id
-```
-
-#### Obter livro com seus poemas
-```http
-GET /api/books/:id/poems
-```
-
-#### Criar livro - 🔒 Protegido
-```http
-POST /api/books
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "title": "Título do Livro",
-  "poet_id": 1,
-  "isbn": "978-1234567890",
-  "publication_year": 2000,
-  "publisher": "Editora",
-  "pages": 200,
-  "language": "Português",
-  "edition": 1,
-  "description": "Descrição do livro...",
-  "cover_url": "https://example.com/cover.jpg"
-}
-```
-
-#### Atualizar livro - 🔒 Protegido
-```http
-PUT /api/books/:id
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "title": "Título Atualizado"
-}
-```
-
-#### Deletar livro - 🔒 Protegido
-```http
-DELETE /api/books/:id
-Authorization: Bearer {token}
-```
-
-### ✍️ Poemas (`/api/poems`)
-
-#### Listar todos os poemas
-```http
-GET /api/poems
-# Filtros opcionais:
-GET /api/poems?book_id=1
-GET /api/poems?theme=amor
-GET /api/poems?style=soneto
-```
-
-#### Obter poema por ID
-```http
-GET /api/poems/:id
-```
-
-#### Criar poema - 🔒 Protegido
-```http
-POST /api/poems
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "title": "Título do Poema",
-  "book_id": 1,
-  "content": "Conteúdo do poema...",
-  "page_number": 42,
-  "verses_count": 14,
-  "stanzas_count": 4,
-  "style": "Soneto",
-  "theme": "Amor",
-  "notes": "Notas sobre o poema..."
-}
-```
-
-#### Atualizar poema - 🔒 Protegido
-```http
-PUT /api/poems/:id
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "title": "Título Atualizado",
-  "content": "Conteúdo atualizado..."
-}
-```
-
-#### Deletar poema - 🔒 Protegido
-```http
-DELETE /api/poems/:id
-Authorization: Bearer {token}
-```
-
-## 🔒 Autenticação JWT
-
-Para acessar rotas protegidas, você precisa:
-
-1. Fazer login ou registrar um usuário
-2. Obter o token JWT retornado
-3. Incluir o token no header das requisições:
-   ```
-   Authorization: Bearer {seu_token_aqui}
-   ```
-
-### Rotas Públicas (sem autenticação):
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/poets`
-- `GET /api/poets/:id`
-- `GET /api/poets/:id/books`
-- `GET /api/books`
-- `GET /api/books/:id`
-- `GET /api/books/:id/poems`
-- `GET /api/poems`
-- `GET /api/poems/:id`
-
-### Rotas Protegidas (requerem autenticação):
-- Todas as rotas de `POST`, `PUT`, `DELETE`
-- Todas as rotas de `/api/users`
-
-## 🧪 Testando a API
-
-### 1. Registrar um usuário
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"teste\",\"email\":\"teste@email.com\",\"password\":\"123456\"}"
-```
-
-### 2. Fazer login
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"teste\",\"password\":\"123456\"}"
-```
-
-### 3. Listar poetas
-```bash
-curl http://localhost:3000/api/poets
-```
-
-### 4. Criar um poeta (com autenticação)
-```bash
-curl -X POST http://localhost:3000/api/poets \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
-  -d "{\"name\":\"Novo Poeta\",\"nationality\":\"Brasileira\"}"
-```
-
-## 📊 Padrões de Resposta
-
-### Sucesso
-```json
-{
-  "success": true,
-  "message": "Operação realizada com sucesso",
-  "data": { ... }
-}
-```
-
-### Erro
-```json
-{
-  "success": false,
-  "message": "Descrição do erro",
-  "errors": [ ... ]
-}
-```
-
-## 🛡️ Segurança
-
-- **Helmet**: Headers de segurança HTTP
-- **CORS**: Controle de acesso cross-origin
-- **Bcrypt**: Hash de senhas
-- **JWT**: Autenticação stateless
-- **Express-validator**: Validação de entrada
-- **Prepared Statements**: Proteção contra SQL Injection
-
-## 📝 Observações
-
-- O banco de dados já vem com dados de exemplo (poets, books, poems)
-- Usuário admin padrão: `username: admin`, `password: admin`
-- Todos os timestamps são gerenciados automaticamente pelo MySQL
-- As relações entre tabelas são mantidas por foreign keys com CASCADE
-
-## 🤝 Contribuindo
-
-Para contribuir com este projeto:
-1. Fork o repositório
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
-
-## 📄 Licença
-
-MIT
-

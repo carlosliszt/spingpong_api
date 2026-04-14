@@ -1,0 +1,291 @@
+const JogoDAO = require('../dao/JogoDAO');
+const CompeticaoDAO = require('../dao/CompeticaoDAO');
+const AtletaDAO = require('../dao/AtletaDAO');
+const SetJogoDAO = require('../dao/SetJogoDAO');
+const httpError = require('../utils/httpError');
+
+function normalizePhase(phase) {
+    return String(phase || '').toUpperCase();
+}
+
+function getNextEliminationPhase(currentPhase) {
+    const phase = normalizePhase(currentPhase);
+    const suffixes = ['OITAVAS_FINAL', 'QUARTAS_FINAL', 'SEMI_FINAL', 'FINAL'];
+
+    const suffix = suffixes.find((item) => phase.endsWith(item));
+    if (!suffix) return null;
+
+    const prefix = phase.slice(0, phase.length - suffix.length);
+
+    if (suffix === 'FINAL') return '__END__';
+    if (suffix === 'SEMI_FINAL') return `${prefix}FINAL`;
+    if (suffix === 'QUARTAS_FINAL') return `${prefix}SEMI_FINAL`;
+    if (suffix === 'OITAVAS_FINAL') return `${prefix}QUARTAS_FINAL`;
+    return null;
+}
+
+function getLoserPlacementPoints(phase) {
+    const normalized = normalizePhase(phase);
+
+    if (normalized.endsWith('SEMI_FINAL')) return 10;
+    if (normalized.endsWith('QUARTAS_FINAL')) return 7;
+    if (normalized.endsWith('OITAVAS_FINAL')) return 5;
+    return 0;
+}
+
+class JogoService {
+    async _applyFinalRankingPoints(competicaoId) {
+        const allElims = await JogoDAO.findEliminatoriasByCompeticao(competicaoId);
+        if (!allElims.length) return;
+
+        const finished = allElims.filter((m) => (m.status === 'FINALIZADO' || m.status === 'W_O') && m.vencedor_id);
+        if (!finished.length) return;
+
+        const pointsByAthlete = new Map();
+        const addPoints = (athleteId, points) => {
+            if (!athleteId || points <= 0) return;
+            pointsByAthlete.set(athleteId, (pointsByAthlete.get(athleteId) || 0) + points);
+        };
+
+        for (const match of finished) {
+            const phase = normalizePhase(match.fase);
+
+            if (phase.endsWith('FINAL')) {
+                const winnerId = match.vencedor_id;
+                const loserId = winnerId === match.atleta_a_id ? match.atleta_b_id : match.atleta_a_id;
+                addPoints(winnerId, 20);
+                addPoints(loserId, 14);
+                continue;
+            }
+
+            const loserId = match.vencedor_id === match.atleta_a_id ? match.atleta_b_id : match.atleta_a_id;
+            addPoints(loserId, getLoserPlacementPoints(phase));
+        }
+
+        for (const [athleteId, points] of pointsByAthlete.entries()) {
+            await AtletaDAO.addRankingPoints(athleteId, points);
+        }
+    }
+
+    async _advanceKnockoutIfNeeded(jogo) {
+        const phase = normalizePhase(jogo.fase);
+        if (phase.startsWith('GRUPO_')) {
+            return;
+        }
+
+        const phaseMatches = await JogoDAO.findByCompeticaoAndFase(jogo.competicao_id, jogo.fase);
+        if (!phaseMatches.length) {
+            return;
+        }
+
+        const phaseFinished = phaseMatches.every(
+            (match) => (match.status === 'FINALIZADO' || match.status === 'W_O') && match.vencedor_id
+        );
+
+        if (!phaseFinished) {
+            return;
+        }
+
+        const nextPhase = getNextEliminationPhase(jogo.fase);
+        if (!nextPhase) {
+            return;
+        }
+
+        if (nextPhase === '__END__') {
+            const allElims = await JogoDAO.findEliminatoriasByCompeticao(jogo.competicao_id);
+            const allFinished = allElims.every(
+                (m) => (m.status === 'FINALIZADO' || m.status === 'W_O') && m.vencedor_id
+            );
+
+            if (allFinished) {
+                const competicao = await CompeticaoDAO.findById(jogo.competicao_id);
+                if (competicao && competicao.status !== 'FINALIZADA') {
+                    await this._applyFinalRankingPoints(jogo.competicao_id);
+                    await CompeticaoDAO.update(jogo.competicao_id, { status: 'FINALIZADA' });
+                }
+            }
+            return;
+        }
+
+        const existingNext = await JogoDAO.findByCompeticaoAndFase(jogo.competicao_id, nextPhase);
+        if (existingNext.length) {
+            return;
+        }
+
+        const winners = [...phaseMatches]
+            .sort((a, b) => (a.rodada ?? 0) - (b.rodada ?? 0) || a.id - b.id)
+            .map((match) => match.vencedor_id)
+            .filter(Boolean);
+
+        const nextMatches = [];
+        for (let i = 0; i < winners.length; i += 2) {
+            const atletaA = winners[i];
+            const atletaB = winners[i + 1];
+            if (!atletaB) {
+                // BYE: atleta sem par avanca implicitamente para a proxima transicao.
+                continue;
+            }
+
+            nextMatches.push({
+                competicao_id: jogo.competicao_id,
+                fase: nextPhase,
+                rodada: i / 2 + 1,
+                atleta_a_id: atletaA,
+                atleta_b_id: atletaB,
+                status: 'AGENDADO',
+                observacoes: jogo.observacoes ?? null
+            });
+        }
+
+        if (!nextMatches.length) {
+            return;
+        }
+
+        await JogoDAO.createMany(nextMatches);
+    }
+
+    async getAll() {
+        return JogoDAO.findAll();
+    }
+
+    async getById(id) {
+        const jogo = await JogoDAO.findById(id);
+        if (!jogo) {
+            throw httpError('Jogo nao encontrado', 404);
+        }
+        return jogo;
+    }
+
+    async validateReferences(data) {
+        const competicao = await CompeticaoDAO.findById(data.competicao_id);
+        if (!competicao) {
+            throw httpError('Competicao nao encontrada', 404);
+        }
+
+        const atletaA = await AtletaDAO.findById(data.atleta_a_id);
+        if (!atletaA) {
+            throw httpError('Atleta A nao encontrado', 404);
+        }
+
+        const atletaB = await AtletaDAO.findById(data.atleta_b_id);
+        if (!atletaB) {
+            throw httpError('Atleta B nao encontrado', 404);
+        }
+
+        if (data.atleta_a_id === data.atleta_b_id) {
+            throw httpError('Atletas do jogo devem ser diferentes', 400);
+        }
+
+        if (data.vencedor_id !== undefined && data.vencedor_id !== null) {
+            if (data.vencedor_id !== data.atleta_a_id && data.vencedor_id !== data.atleta_b_id) {
+                throw httpError('Vencedor precisa ser atleta_a_id ou atleta_b_id', 400);
+            }
+        }
+    }
+
+    async create(data) {
+        await this.validateReferences(data);
+        return JogoDAO.create(data);
+    }
+
+    async update(id, data) {
+        const current = await this.getById(id);
+        const merged = {
+            competicao_id: data.competicao_id ?? current.competicao_id,
+            atleta_a_id: data.atleta_a_id ?? current.atleta_a_id,
+            atleta_b_id: data.atleta_b_id ?? current.atleta_b_id,
+            vencedor_id: data.vencedor_id !== undefined ? data.vencedor_id : current.vencedor_id
+        };
+
+        await this.validateReferences(merged);
+        return JogoDAO.update(id, data);
+    }
+
+    async delete(id) {
+        const deleted = await JogoDAO.delete(id);
+        if (!deleted) {
+            throw httpError('Jogo nao encontrado', 404);
+        }
+        return true;
+    }
+
+    async registrarResultadoJogo(payload) {
+        const jogoId = Number(payload.jogoId || payload.jogo_id);
+        const setsPayload = Array.isArray(payload.sets) ? payload.sets : [];
+
+        if (!jogoId || !setsPayload.length) {
+            throw httpError('jogoId e sets sao obrigatorios', 400);
+        }
+
+        if (setsPayload.length > 5) {
+            throw httpError('Jogo melhor de 5 permite no maximo 5 sets', 400);
+        }
+
+        const jogo = await this.getById(jogoId);
+        if (jogo.status === 'FINALIZADO') {
+            throw httpError('Este jogo ja foi finalizado', 409);
+        }
+
+        let setsA = 0;
+        let setsB = 0;
+
+        const normalizedSets = setsPayload.map((set, index) => {
+            const pontosA = Number(set.pontos_a ?? set.pontos_atleta_a);
+            const pontosB = Number(set.pontos_b ?? set.pontos_atleta_b);
+
+            if (Number.isNaN(pontosA) || Number.isNaN(pontosB)) {
+                throw httpError('Pontos dos sets devem ser numericos', 400);
+            }
+
+            if (pontosA === pontosB) {
+                throw httpError('Sets empatados nao sao permitidos', 400);
+            }
+
+            let vencedorSetId = null;
+            if (pontosA > pontosB) {
+                setsA += 1;
+                vencedorSetId = jogo.atleta_a_id;
+            } else if (pontosB > pontosA) {
+                setsB += 1;
+                vencedorSetId = jogo.atleta_b_id;
+            }
+
+            return {
+                numero_set: Number(set.numero_set || index + 1),
+                pontos_atleta_a: pontosA,
+                pontos_atleta_b: pontosB,
+                vencedor_set_id: vencedorSetId
+            };
+        });
+
+        if (Math.max(setsA, setsB) !== 3 || normalizedSets.length < 3) {
+            throw httpError('Resultado invalido para melhor de 5: vencedor precisa ganhar 3 sets', 400);
+        }
+
+        let vencedorId = payload.vencedor_id ? Number(payload.vencedor_id) : null;
+        if (!vencedorId) {
+            vencedorId = setsA > setsB ? jogo.atleta_a_id : setsB > setsA ? jogo.atleta_b_id : null;
+        }
+
+        if (!vencedorId) {
+            throw httpError('Nao foi possivel determinar vencedor do jogo', 400);
+        }
+
+        await SetJogoDAO.replaceSetsForJogo(jogoId, normalizedSets);
+        const updated = await JogoDAO.update(jogoId, {
+            vencedor_id: vencedorId,
+            status: 'FINALIZADO'
+        });
+
+        if (!normalizePhase(jogo.fase).startsWith('GRUPO_')) {
+            await this._advanceKnockoutIfNeeded(jogo);
+        }
+
+        return {
+            ...updated,
+            sets: await SetJogoDAO.findAllByJogoId(jogoId)
+        };
+    }
+}
+
+module.exports = new JogoService();

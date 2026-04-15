@@ -58,7 +58,35 @@ function roundNameByBracketSize(size) {
     return `MATA_${size}`;
 }
 
+function nextPowerOfTwo(n) {
+    let p = 1;
+    while (p < n) p *= 2;
+    return p;
+}
+
 class CompeticaoService {
+    _parseByeIds(observacoes) {
+        const text = String(observacoes || '');
+        const match = text.match(/BYE_IDS:([0-9,]+)/);
+        if (!match) return [];
+        return match[1]
+            .split(',')
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0);
+    }
+
+    _composeObservacoes(baseObservacoes, byeIds) {
+        const base = String(baseObservacoes || '').replace(/\|?BYE_IDS:[0-9,]*/g, '').trim();
+        const uniqueByeIds = [...new Set((byeIds || []).map(Number).filter((id) => Number.isFinite(id) && id > 0))];
+
+        if (!uniqueByeIds.length) {
+            return base || null;
+        }
+
+        const byeTag = `BYE_IDS:${uniqueByeIds.join(',')}`;
+        return base ? `${base}|${byeTag}` : byeTag;
+    }
+
     async getAll() {
         return CompeticaoDAO.findAll();
     }
@@ -325,6 +353,20 @@ class CompeticaoService {
         return result;
     }
 
+    _firstRoundSeedPairs(entries, bracketSize) {
+        const sorted = [...entries].sort((a, b) => Number(b.rating_atual) - Number(a.rating_atual));
+        const pairs = [];
+
+        for (let seed = 1; seed <= bracketSize / 2; seed += 1) {
+            const mirroredSeed = bracketSize - seed + 1;
+            const atletaA = sorted[seed - 1] || null;
+            const atletaB = sorted[mirroredSeed - 1] || null;
+            pairs.push({ slot: seed, atletaA, atletaB });
+        }
+
+        return pairs;
+    }
+
     async gerarMataMata(payload) {
         const competitionId = Number(payload.competitionId || payload.competicao_id);
         const competition = await this.getById(competitionId);
@@ -361,19 +403,52 @@ class CompeticaoService {
                         .sort((a, b) => Number(b.rating_atual) - Number(a.rating_atual))
                 );
 
-                const phaseName = `OPEN_${level}_${roundNameByBracketSize(seeded.length)}`;
-                for (let i = 0; i < seeded.length; i += 2) {
-                    if (!seeded[i + 1]) continue; // bye automatico
-                    phasesToCreate.push({
+                // Regra: BYE deve acontecer somente na primeira fase disponivel
+                // (nunca em semifinal). Por isso usamos chave em potencia de 2.
+                const bracketSize = nextPowerOfTwo(seeded.length || 1);
+                const firstRoundPairs = this._firstRoundSeedPairs(seeded, bracketSize);
+
+                const phaseName = `OPEN_${level}_${roundNameByBracketSize(bracketSize)}`;
+                const phaseMatches = [];
+                const byeIds = [];
+
+                for (const pair of firstRoundPairs) {
+                    const { slot, atletaA, atletaB } = pair;
+
+                    if (!atletaA && !atletaB) {
+                        continue;
+                    }
+
+                    if (!atletaA && atletaB) {
+                        byeIds.push(atletaB.id);
+                        continue;
+                    }
+
+                    if (atletaA && !atletaB) {
+                        byeIds.push(atletaA.id);
+                        continue;
+                    }
+
+                    phaseMatches.push({
                         competicao_id: competitionId,
                         fase: phaseName,
-                        rodada: i / 2 + 1,
-                        atleta_a_id: seeded[i].id,
-                        atleta_b_id: seeded[i + 1].id,
+                        rodada: slot,
+                        atleta_a_id: atletaA.id,
+                        atleta_b_id: atletaB.id,
                         status: 'AGENDADO',
                         observacoes: `NIVEL_${level}`
                     });
                 }
+
+                const baseObservacoes = phaseMatches[0]?.observacoes || `NIVEL_${level}`;
+                const inheritedByeIds = this._parseByeIds(baseObservacoes);
+                const observacoesComBye = this._composeObservacoes(baseObservacoes, [...inheritedByeIds, ...byeIds]);
+
+                phaseMatches.forEach((match) => {
+                    match.observacoes = observacoesComBye;
+                });
+
+                phasesToCreate.push(...phaseMatches);
             }
         } else {
             const classificados = [];
@@ -389,18 +464,47 @@ class CompeticaoService {
                     .sort((a, b) => Number(b.rating_atual) - Number(a.rating_atual))
             );
 
-            const phaseName = roundNameByBracketSize(seeded.length);
-            for (let i = 0; i < seeded.length; i += 2) {
-                if (!seeded[i + 1]) continue; // bye automatico
-                phasesToCreate.push({
+            const bracketSize = nextPowerOfTwo(seeded.length || 1);
+            const firstRoundPairs = this._firstRoundSeedPairs(seeded, bracketSize);
+
+            const phaseName = roundNameByBracketSize(bracketSize);
+            const phaseMatches = [];
+            const byeIds = [];
+
+            for (const pair of firstRoundPairs) {
+                const { slot, atletaA, atletaB } = pair;
+
+                if (!atletaA && !atletaB) {
+                    continue;
+                }
+
+                if (!atletaA && atletaB) {
+                    byeIds.push(atletaB.id);
+                    continue;
+                }
+
+                if (atletaA && !atletaB) {
+                    byeIds.push(atletaA.id);
+                    continue;
+                }
+
+                phaseMatches.push({
                     competicao_id: competitionId,
                     fase: phaseName,
-                    rodada: i / 2 + 1,
-                    atleta_a_id: seeded[i].id,
-                    atleta_b_id: seeded[i + 1].id,
-                    status: 'AGENDADO'
+                    rodada: slot,
+                    atleta_a_id: atletaA.id,
+                    atleta_b_id: atletaB.id,
+                    status: 'AGENDADO',
+                    observacoes: null
                 });
             }
+
+            const observacoesComBye = this._composeObservacoes(null, byeIds);
+            phaseMatches.forEach((match) => {
+                match.observacoes = observacoesComBye;
+            });
+
+            phasesToCreate.push(...phaseMatches);
         }
 
         const created = await JogoDAO.createMany(phasesToCreate);

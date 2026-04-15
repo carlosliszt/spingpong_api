@@ -33,6 +33,33 @@ function getLoserPlacementPoints(phase) {
     return 0;
 }
 
+function parseByeIds(observacoes) {
+    const text = String(observacoes || '');
+    const match = text.match(/BYE_IDS:([0-9,]+)/);
+    if (!match) return [];
+
+    return match[1]
+        .split(',')
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+}
+
+function stripByeTag(observacoes) {
+    return String(observacoes || '').replace(/\|?BYE_IDS:[0-9,]*/g, '').trim();
+}
+
+function composeObservacoes(baseObservacoes, byeIds) {
+    const base = stripByeTag(baseObservacoes);
+    const uniqueByeIds = [...new Set((byeIds || []).map(Number).filter((id) => Number.isFinite(id) && id > 0))];
+
+    if (!uniqueByeIds.length) {
+        return base || null;
+    }
+
+    const byeTag = `BYE_IDS:${uniqueByeIds.join(',')}`;
+    return base ? `${base}|${byeTag}` : byeTag;
+}
+
 class JogoService {
     async _applyFinalRankingPoints(competicaoId) {
         const allElims = await JogoDAO.findEliminatoriasByCompeticao(competicaoId);
@@ -117,12 +144,23 @@ class JogoService {
             .map((match) => match.vencedor_id)
             .filter(Boolean);
 
+        const inheritedByeIds = parseByeIds(phaseMatches[0]?.observacoes);
+        inheritedByeIds.forEach((id) => {
+            if (!winners.includes(id)) {
+                winners.push(id);
+            }
+        });
+
         const nextMatches = [];
+        const nextPhaseByeIds = [];
+        const baseObservacoes = stripByeTag(phaseMatches[0]?.observacoes);
+
         for (let i = 0; i < winners.length; i += 2) {
             const atletaA = winners[i];
             const atletaB = winners[i + 1];
             if (!atletaB) {
-                // BYE: atleta sem par avanca implicitamente para a proxima transicao.
+                // BYE: atleta sem par avanca implicitamente para a proxima fase.
+                if (atletaA) nextPhaseByeIds.push(atletaA);
                 continue;
             }
 
@@ -133,13 +171,18 @@ class JogoService {
                 atleta_a_id: atletaA,
                 atleta_b_id: atletaB,
                 status: 'AGENDADO',
-                observacoes: jogo.observacoes ?? null
+                observacoes: null
             });
         }
 
         if (!nextMatches.length) {
             return;
         }
+
+        const nextObservacoes = composeObservacoes(baseObservacoes, nextPhaseByeIds);
+        nextMatches.forEach((match) => {
+            match.observacoes = nextObservacoes;
+        });
 
         await JogoDAO.createMany(nextMatches);
     }

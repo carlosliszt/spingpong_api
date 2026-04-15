@@ -25,7 +25,9 @@ export function MatchResultPage() {
   const matchesQuery = useQuery({ queryKey: ['matches'], queryFn: services.getMatches });
 
   const selectableMatches = useMemo(() => {
-    const pending = (matchesQuery.data ?? []).filter((m) => m.status !== 'FINALIZADO' && m.status !== 'CANCELADO');
+    const pending = (matchesQuery.data ?? []).filter(
+      (m) => m.status !== 'FINALIZADO' && m.status !== 'CANCELADO' && m.status !== 'W_O'
+    );
     return competitionIdFromRoute ? pending.filter((m) => m.competicao_id === competitionIdFromRoute) : pending;
   }, [matchesQuery.data, competitionIdFromRoute]);
 
@@ -52,6 +54,7 @@ export function MatchResultPage() {
     onSuccess: () => {
       setFeedback('Resultado registrado com sucesso.');
       qc.invalidateQueries({ queryKey: ['matches'] });
+      qc.invalidateQueries({ queryKey: ['bracket'] });
       qc.invalidateQueries({ queryKey: ['history-results'] });
       qc.invalidateQueries({ queryKey: ['history-rating'] });
     },

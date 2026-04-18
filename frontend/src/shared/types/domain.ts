@@ -106,7 +106,9 @@ export type ResultHistory = {
   status_anterior?: string | null;
   status_novo: string;
   vencedor_anterior_id?: number | null;
+  vencedor_anterior_nome?: string | null;
   vencedor_novo_id?: number | null;
+  vencedor_novo_nome?: string | null;
   alterado_por: number;
   motivo?: string | null;
   created_at?: string;

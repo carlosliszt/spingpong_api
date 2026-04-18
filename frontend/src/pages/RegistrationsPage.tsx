@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { services } from '@/shared/api/services';
+import { Button, Card, Section, Select, Input, Badge, Alert, Modal, ConfirmDialog, EmptyState } from '@/shared/components/ui';
+import { useFeedback } from '@/shared/hooks';
 
 type FormState = {
   competicao_id: number;
@@ -17,10 +19,13 @@ export function RegistrationsPage() {
   const competitionIdFromRoute = id ? Number(id) : 0;
 
   const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(
     competitionIdFromRoute ? { ...initialState, competicao_id: competitionIdFromRoute } : initialState
   );
+  const { feedback, showSuccess, showError, clear } = useFeedback();
 
   const registrationsQuery = useQuery({ queryKey: ['registrations'], queryFn: services.getRegistrations });
   const competitionsQuery = useQuery({ queryKey: ['competitions'], queryFn: services.getCompetitions });
@@ -42,7 +47,10 @@ export function RegistrationsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registrations'] });
       setForm({ ...initialState, competicao_id: competitionIdFromRoute || 0 });
-    }
+      setShowForm(false);
+      showSuccess('Inscrição criada com sucesso!');
+    },
+    onError: (error: any) => showError(error?.response?.data?.message || 'Erro ao criar')
   });
 
   const updateMutation = useMutation({
@@ -51,74 +59,192 @@ export function RegistrationsPage() {
       qc.invalidateQueries({ queryKey: ['registrations'] });
       setEditingId(null);
       setForm({ ...initialState, competicao_id: competitionIdFromRoute || 0 });
-    }
+      setShowForm(false);
+      showSuccess('Inscrição atualizada com sucesso!');
+    },
+    onError: (error: any) => showError(error?.response?.data?.message || 'Erro ao atualizar')
   });
 
   const deleteMutation = useMutation({
     mutationFn: (rid: number) => services.deleteRegistration(rid),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations'] })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['registrations'] });
+      setDeleteConfirm(null);
+      showSuccess('Inscrição excluída com sucesso!');
+    },
+    onError: (error: any) => showError(error?.response?.data?.message || 'Erro ao excluir')
   });
 
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">
-        Inscricoes {competition ? `- ${competition.nome}` : '(por torneio)'}
-      </h1>
+  const handleEdit = (reg: any) => {
+    setEditingId(reg.id);
+    setForm({ competicao_id: reg.competicao_id, atleta_id: reg.atleta_id, seed_num: reg.seed_num ?? undefined, status: reg.status });
+    setShowForm(true);
+  };
 
-      <section className="card space-y-2">
-        <h2 className="font-semibold">{editingId ? `Editar inscricao #${editingId}` : 'Nova inscricao'}</h2>
-        <div className="grid gap-2 md:grid-cols-4">
-          {!competitionIdFromRoute ? (
-            <select className="input" value={form.competicao_id || ''} onChange={(e) => setForm({ ...form, competicao_id: Number(e.target.value) })}>
-              <option value="">Selecione a competicao</option>
-              {(competitionsQuery.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          ) : (
-            <div className="input bg-slate-50">Competicao #{competitionIdFromRoute}</div>
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm({ ...initialState, competicao_id: competitionIdFromRoute || 0 });
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'CONFIRMADO') return 'success';
+    if (status === 'CANCELADO') return 'danger';
+    return 'warning';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="heading-page">📝 Inscrições</h1>
+          <p className="text-neutral-600">
+            {competition ? competition.nome : 'Gerenciar inscrições em torneios'}
+          </p>
+        </div>
+        <Button variant="primary" onClick={() => setShowForm(true)}>
+          ➕ Nova Inscrição
+        </Button>
+      </div>
+
+      {/* Feedback */}
+      {feedback && (
+        <Alert type={feedback.type === 'success' ? 'success' : 'danger'} onClose={clear}>
+          {feedback.msg}
+        </Alert>
+      )}
+
+      {/* Form Modal */}
+      <Modal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        title={editingId ? `Editar Inscrição #${editingId}` : 'Nova Inscrição'}
+        actions={[
+          {
+            label: 'Cancelar',
+            onClick: handleCloseForm,
+            variant: 'secondary'
+          },
+          {
+            label: editingId ? 'Atualizar' : 'Criar',
+            onClick: () => (editingId ? updateMutation.mutate() : createMutation.mutate()),
+            variant: 'primary'
+          }
+        ]}
+      >
+        <div className="space-y-4">
+          {!competitionIdFromRoute && (
+            <Select
+              label="Competição *"
+              options={[
+                { value: '', label: 'Selecione a competição...' },
+                ...(competitionsQuery.data ?? []).map((c) => ({ value: c.id, label: c.nome }))
+              ]}
+              value={form.competicao_id || ''}
+              onChange={(e) => setForm({ ...form, competicao_id: Number(e.target.value) })}
+            />
           )}
 
-          <select className="input" value={form.atleta_id || ''} onChange={(e) => setForm({ ...form, atleta_id: Number(e.target.value) })}>
-            <option value="">Selecione o atleta</option>
-            {(athletesQuery.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>{a.nome} (PT.RAT {a.rating_atual})</option>
-            ))}
-          </select>
+          <Select
+            label="Atleta *"
+            options={[
+              { value: '', label: 'Selecione o atleta...' },
+              ...(athletesQuery.data ?? []).map((a) => ({ value: a.id, label: `${a.nome} (PT.RAT: ${a.rating_atual})` }))
+            ]}
+            value={form.atleta_id || ''}
+            onChange={(e) => setForm({ ...form, atleta_id: Number(e.target.value) })}
+          />
 
-          <input className="input" type="number" placeholder="seed_num" value={form.seed_num ?? ''} onChange={(e) => setForm({ ...form, seed_num: e.target.value ? Number(e.target.value) : undefined })} />
-          <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as FormState['status'] })}>
-            <option value="INSCRITO">INSCRITO</option>
-            <option value="CONFIRMADO">CONFIRMADO</option>
-            <option value="CANCELADO">CANCELADO</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <button className="btn-primary" onClick={() => (editingId ? updateMutation.mutate() : createMutation.mutate())}>
-            {editingId ? 'Atualizar' : 'Criar'}
-          </button>
-          {editingId ? <button className="btn-secondary" onClick={() => { setEditingId(null); setForm({ ...initialState, competicao_id: competitionIdFromRoute || 0 }); }}>Cancelar</button> : null}
-        </div>
-      </section>
+          <Input
+            label="Seed (Opcional)"
+            type="number"
+            placeholder="Ex: 1"
+            value={form.seed_num ?? ''}
+            onChange={(e) => setForm({ ...form, seed_num: e.target.value ? Number(e.target.value) : undefined })}
+          />
 
-      <section className="card overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead><tr className="text-left text-slate-500"><th>ID</th><th>Competicao</th><th>Atleta</th><th>Seed</th><th>Status</th><th>Acoes</th></tr></thead>
-          <tbody>
-            {registrations.map((r) => (
-              <tr key={r.id} className="border-t border-slate-100">
-                <td>{r.id}</td>
-                <td>{r.competicao_nome ?? r.competicao_id}</td>
-                <td><Link className="text-brand-700 hover:underline" to="/atletas">{r.atleta_nome ?? r.atleta_id}</Link></td>
-                <td>{r.seed_num ?? '-'}</td>
-                <td>{r.status}</td>
-                <td className="space-x-2">
-                  <button className="btn-secondary" onClick={() => { setEditingId(r.id); setForm({ competicao_id: r.competicao_id, atleta_id: r.atleta_id, seed_num: r.seed_num ?? undefined, status: r.status }); }}>Editar</button>
-                  <button className="btn-secondary" onClick={() => deleteMutation.mutate(r.id)}>Excluir</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          <Select
+            label="Status"
+            options={[
+              { value: 'INSCRITO', label: '📝 Inscrito' },
+              { value: 'CONFIRMADO', label: '✓ Confirmado' },
+              { value: 'CANCELADO', label: '✕ Cancelado' }
+            ]}
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value as FormState['status'] })}
+          />
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Excluir Inscrição?"
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Sim, excluir"
+        isDangerous
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+
+      {/* Registrations Table */}
+      <Card>
+        <Section title="Lista de Inscrições" subtitle={`${registrations.length} inscrições`}>
+          {registrations.length === 0 ? (
+            <EmptyState
+              icon="📝"
+              title="Nenhuma inscrição"
+              description="Crie uma nova inscrição para este torneio"
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Competição</th>
+                    <th>Atleta</th>
+                    <th>Seed</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registrations.map((r) => (
+                    <tr key={r.id}>
+                      <td className="text-neutral-600">#{r.id}</td>
+                      <td className="font-medium">{r.competicao_nome ?? `Competição ${r.competicao_id}`}</td>
+                      <td>
+                        <Link to="/atletas" className="text-brand-600 hover:text-brand-700 font-medium">
+                          {r.atleta_nome ?? `Atleta ${r.atleta_id}`}
+                        </Link>
+                      </td>
+                      <td className="text-center">{r.seed_num ?? '-'}</td>
+                      <td>
+                        <Badge variant={getStatusColor(r.status)}>
+                          {r.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="secondary" onClick={() => handleEdit(r)}>
+                            ✏️
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setDeleteConfirm(r.id)}>
+                            🗑️
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      </Card>
     </div>
   );
 }

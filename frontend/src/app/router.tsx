@@ -18,6 +18,7 @@ import { MatchResultPage } from '@/pages/MatchResultPage';
 import { MatchResultsViewPage } from '@/pages/MatchResultsViewPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { RankingPage } from '@/pages/RankingPage';
 
 function Protected() {
   const token = useAuthStore((s) => s.token);
@@ -46,9 +47,10 @@ export const router = createBrowserRouter([
       { path: 'jogos', element: <MatchesPage /> },
       { path: 'jogos/resultados', element: <MatchResultPage /> },
       { path: 'competicoes/:id/resultados', element: <MatchResultPage /> },
-      { path: 'competicoes/:id/resultados/consulta', element: <MatchResultsViewPage /> },
-      { path: 'historico', element: <HistoryPage /> },
-      { path: 'configuracoes', element: <SettingsPage /> }
+       { path: 'competicoes/:id/resultados/consulta', element: <MatchResultsViewPage /> },
+       { path: 'historico', element: <HistoryPage /> },
+       { path: 'ranking', element: <RankingPage /> },
+       { path: 'configuracoes', element: <SettingsPage /> }
     ]
   }
 ]);

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { services } from '@/shared/api/services';
+import { Card, Section, Select, Badge, EmptyState, LoadingSpinner } from '@/shared/components/ui';
 
 function phaseLabel(phase: string) {
   const upper = String(phase || '').toUpperCase();
@@ -19,9 +20,15 @@ export function MatchResultsViewPage() {
 
   if (!competitionIdFromRoute) {
     return (
-      <section className="card text-sm text-slate-700">
-        Esta consulta de resultados e exclusiva por torneio. Acesse via tela de operacoes da competicao.
-      </section>
+      <Card>
+        <Section title="Resultados por Torneio">
+          <EmptyState
+            icon="📊"
+            title="Acesso exclusivo por torneio"
+            description="Acesse esta página através da tela de operações do torneio"
+          />
+        </Section>
+      </Card>
     );
   }
 
@@ -85,62 +92,99 @@ export function MatchResultsViewPage() {
   }, [filteredMatches, setsQueries]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Resultados de jogos - Torneio #{competitionIdFromRoute}</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="heading-page">📊 Resultados de Jogos</h1>
+        <p className="text-neutral-600">Torneio #{competitionIdFromRoute}</p>
+      </div>
 
-      <section className="card grid gap-2 md:grid-cols-3">
-        <label className="text-sm text-slate-600">
-          Fase
-          <select className="input mt-1" value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)}>
-            {phaseOptions.map((phase) => (
-              <option key={phase} value={phase}>{phase}</option>
-            ))}
-          </select>
-        </label>
+      {/* Filters */}
+      <Card>
+        <Section title="🔍 Filtros" subtitle="Refine sua busca">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Select
+              label="Fase"
+              options={phaseOptions.map((phase) => ({ value: phase, label: phase }))}
+              value={phaseFilter}
+              onChange={(e) => setPhaseFilter(e.target.value)}
+            />
 
-        <label className="text-sm text-slate-600">
-          Atleta
-          <select className="input mt-1" value={athleteFilter || ''} onChange={(e) => setAthleteFilter(e.target.value ? Number(e.target.value) : 0)}>
-            <option value="">Todos</option>
-            {(athletesQuery.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>{a.nome}</option>
-            ))}
-          </select>
-        </label>
+            <Select
+              label="Atleta"
+              options={[
+                { value: '', label: 'Todos' },
+                ...(athletesQuery.data ?? []).map((a) => ({ value: a.id, label: a.nome }))
+              ]}
+              value={athleteFilter || ''}
+              onChange={(e) => setAthleteFilter(e.target.value ? Number(e.target.value) : 0)}
+            />
 
-        <div className="text-sm text-slate-600 flex items-end">Resultados encontrados: {filteredMatches.length}</div>
-      </section>
+            <div className="flex items-end">
+              <div className="p-3 bg-brand-50 rounded-lg flex-1">
+                <p className="text-xs text-neutral-600">Resultados encontrados</p>
+                <p className="text-2xl font-bold text-brand-600">{filteredMatches.length}</p>
+              </div>
+            </div>
+          </div>
+        </Section>
+      </Card>
 
-      <section className="card overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left text-slate-500">
-              <th>ID</th>
-              <th>Competicao</th>
-              <th>Fase</th>
-              <th>Atleta A</th>
-              <th>Atleta B</th>
-              <th>Sets</th>
-              <th>Vencedor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredMatches.map((m) => (
-              <tr key={m.id} className="border-t border-slate-100">
-                <td>{m.id}</td>
-                <td>{m.competicao_nome ?? m.competicao_id}</td>
-                <td>{m.fase}</td>
-                <td><Link className="text-brand-700 hover:underline" to="/atletas">{m.atleta_a_nome ?? m.atleta_a_id}</Link></td>
-                <td><Link className="text-brand-700 hover:underline" to="/atletas">{m.atleta_b_nome ?? m.atleta_b_id}</Link></td>
-                <td>{setScoreByMatch[m.id] ?? '-'}</td>
-                <td>{m.vencedor_nome ?? m.vencedor_id ?? '-'}</td>
-                <td>{m.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      {/* Results Table */}
+      <Card>
+        <Section title="Resultados" subtitle={`${filteredMatches.length} jogos`}>
+          {matchesQuery.isLoading ? (
+            <LoadingSpinner />
+          ) : filteredMatches.length === 0 ? (
+            <EmptyState
+              icon="📊"
+              title="Nenhum resultado"
+              description="Não encontramos resultados com os filtros selecionados"
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Fase</th>
+                    <th>Atleta A</th>
+                    <th>Atleta B</th>
+                    <th>Sets</th>
+                    <th>Vencedor</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMatches.map((m) => (
+                    <tr key={m.id}>
+                      <td className="text-neutral-600">#{m.id}</td>
+                      <td><Badge variant="neutral">{phaseLabel(m.fase)}</Badge></td>
+                      <td>
+                        <Link to="/atletas" className="text-brand-600 hover:text-brand-700 font-medium">
+                          {m.atleta_a_nome ?? `#${m.atleta_a_id}`}
+                        </Link>
+                      </td>
+                      <td>
+                        <Link to="/atletas" className="text-brand-600 hover:text-brand-700 font-medium">
+                          {m.atleta_b_nome ?? `#${m.atleta_b_id}`}
+                        </Link>
+                      </td>
+                      <td className="font-semibold text-center">{setScoreByMatch[m.id] ?? '-'}</td>
+                      <td className="font-semibold text-success-600">
+                        {m.vencedor_nome ?? (m.vencedor_id ? `Atleta ${m.vencedor_id}` : '-')}
+                      </td>
+                      <td>
+                        <Badge variant="success">{m.status}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      </Card>
     </div>
   );
 }

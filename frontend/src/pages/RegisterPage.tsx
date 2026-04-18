@@ -1,69 +1,129 @@
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { registerAdmin } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/shared/store/authStore';
+import { Card, Section, Input, Button, Alert } from '@/shared/components/ui';
+import { useFeedback } from '@/shared/hooks';
 
-const schema = z.object({
-  nome: z.string().min(3, 'Nome deve ter no minimo 3 caracteres'),
-  email: z.string().email('Email invalido'),
-  senha: z.string().min(6, 'Senha deve ter no minimo 6 caracteres')
-});
-
-type FormData = z.infer<typeof schema>;
+interface FormData {
+  nome: string;
+  email: string;
+  senha: string;
+}
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const setSession = useAuthStore((s) => s.setSession);
+  const { feedback, showError, clear } = useFeedback();
   const {
     register,
     handleSubmit,
-    formState: { errors }
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+    formState: { isSubmitting }
+  } = useForm<FormData>({
+    defaultValues: {
+      nome: '',
+      email: '',
+      senha: ''
+    }
+  });
 
   const mutation = useMutation({
     mutationFn: ({ nome, email, senha }: FormData) => registerAdmin(nome, email, senha),
     onSuccess: ({ token, usuario }) => {
       setSession(token, usuario);
       navigate('/');
+    },
+    onError: (error: any) => {
+      showError(error?.response?.data?.message || 'Erro ao registrar');
     }
   });
 
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+    try {
+      console.log('Form submitted with data:', data);
+
+      // Validação manual
+      if (!data.nome) {
+        showError('Nome é obrigatório');
+        return;
+      }
+      if (data.nome.length < 3) {
+        showError('Nome deve ter no mínimo 3 caracteres');
+        return;
+      }
+      if (!data.email) {
+        showError('Email é obrigatório');
+        return;
+      }
+      if (!data.email.includes('@')) {
+        showError('Email inválido');
+        return;
+      }
+      if (!data.senha) {
+        showError('Senha é obrigatória');
+        return;
+      }
+      if (data.senha.length < 6) {
+        showError('Senha deve ter no mínimo 6 caracteres');
+        return;
+      }
+
+      console.log('Validação passou, enviando...');
+      await mutation.mutateAsync(data);
+    } catch (error) {
+      console.error('Erro no submit:', error);
+      showError('Erro ao registrar. Tente novamente.');
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <form className="card w-full max-w-md space-y-4" onSubmit={handleSubmit((data) => mutation.mutate(data))}>
-        <h1 className="text-xl font-semibold">Criar conta de admin</h1>
-        <div>
-          <label htmlFor="nome">Nome</label>
-          <input id="nome" className="input" {...register('nome')} />
-          {errors.nome ? <p className="text-xs text-rose-600">{errors.nome.message}</p> : null}
-        </div>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" className="input" {...register('email')} />
-          {errors.email ? <p className="text-xs text-rose-600">{errors.email.message}</p> : null}
-        </div>
-        <div>
-          <label htmlFor="senha">Senha</label>
-          <input id="senha" type="password" className="input" {...register('senha')} />
-          {errors.senha ? <p className="text-xs text-rose-600">{errors.senha.message}</p> : null}
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 p-4">
+      <div className="w-full max-w-md">
+        <Card>
+          <Section title="✨ Criar Conta" subtitle="Registre-se como administrador">
+            {feedback && (
+              <Alert type="danger" onClose={clear}>
+                {feedback.msg}
+              </Alert>
+            )}
 
-        {mutation.isError ? <p className="text-sm text-rose-600">Falha no registro. Verifique os dados.</p> : null}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Input
+                label="Nome *"
+                placeholder="Ex: João Silva"
+                {...register('nome', { required: true })}
+              />
 
-        <button className="btn-primary w-full" type="submit" disabled={mutation.isPending}>
-          Registrar
-        </button>
+              <Input
+                label="Email *"
+                type="email"
+                placeholder="seu@email.com"
+                {...register('email', { required: true })}
+              />
 
-        <p className="text-center text-sm text-slate-600">
-          Ja possui conta?{' '}
-          <Link className="font-medium text-brand-700 hover:underline" to="/login">
-            Entrar
-          </Link>
-        </p>
-      </form>
+              <Input
+                label="Senha *"
+                type="password"
+                placeholder="••••••••"
+                help="Mínimo 6 caracteres"
+                {...register('senha', { required: true })}
+              />
+
+              <Button variant="primary" isBlock isLoading={mutation.isPending || isSubmitting} type="submit">
+                Registrar
+              </Button>
+
+              <div className="text-center text-sm text-neutral-600">
+                Já possui conta?{' '}
+                <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">
+                  Entrar aqui
+                </Link>
+              </div>
+            </form>
+          </Section>
+        </Card>
+      </div>
     </div>
   );
 }

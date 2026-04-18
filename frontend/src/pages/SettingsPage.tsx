@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { Card, Section, Button, Alert } from '@/shared/components/ui';
+import { useFeedback } from '@/shared/hooks';
 
 const STORAGE_KEY = 'spingpong_tiebreak_criteria';
-const defaultCriteria = ['Vitorias', 'Confronto direto', 'Saldo de sets', 'Saldo de pontos', 'Sorteio manual'];
+const defaultCriteria = ['Vitórias', 'Confronto direto', 'Saldo de sets', 'Saldo de pontos', 'Sorteio manual'];
 
 export function SettingsPage() {
   const [criteria, setCriteria] = useState(defaultCriteria);
-  const [saved, setSaved] = useState(false);
+  const { feedback, showSuccess, clear } = useFeedback();
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -22,22 +24,58 @@ export function SettingsPage() {
 
   const saveCriteria = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(criteria));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    showSuccess('Parâmetros salvos com sucesso!');
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Configuracoes</h1>
-      <section className="card space-y-2">
-        <h2 className="font-semibold">Criterios de desempate (admin)</h2>
-        <p className="text-sm text-slate-600">Persistencia local ativa. Voce pode ajustar ordem e salvar.</p>
-        <ol className="list-decimal pl-5 text-sm">
-          {criteria.map((item, i) => <li key={item + i}>{item}</li>)}
-        </ol>
-        <button className="btn-primary" onClick={saveCriteria}>Salvar parametros</button>
-        {saved ? <p className="text-sm text-emerald-700">Parametros salvos com sucesso.</p> : null}
-      </section>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="heading-page">⚙️ Configurações</h1>
+        <p className="text-neutral-600">Ajuste os parâmetros do sistema</p>
+      </div>
+
+      {/* Feedback */}
+      {feedback && (
+        <Alert type={feedback.type === 'success' ? 'success' : 'danger'} onClose={clear}>
+          {feedback.msg}
+        </Alert>
+      )}
+
+      {/* Tiebreak Criteria */}
+      <Card>
+        <Section
+          title="📋 Critérios de Desempate"
+          subtitle="Configure a ordem de prioridade para desempates em grupo"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-600">
+              Estes critérios são aplicados na classificação dos grupos em caso de empate.
+              A persistência é local (seu navegador).
+            </p>
+
+            <div className="bg-neutral-50 rounded-lg p-4 space-y-2">
+              {criteria.map((item, i) => (
+                <div key={item + i} className="flex items-center gap-2 p-2">
+                  <span className="text-lg font-bold text-brand-600">#{i + 1}</span>
+                  <span className="font-medium text-neutral-900">{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <Button variant="primary" onClick={saveCriteria} isBlock>
+              💾 Salvar Parâmetros
+            </Button>
+          </div>
+        </Section>
+      </Card>
+
+      {/* Info Card */}
+      <Card size="sm">
+        <p className="text-xs text-neutral-600 text-center">
+          💡 <strong>Dica:</strong> Os parâmetros são salvos no armazenamento local do seu navegador
+        </p>
+      </Card>
     </div>
   );
 }

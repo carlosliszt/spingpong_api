@@ -11,9 +11,13 @@ class HistoricoDAO {
         }
 
         const [rows] = await pool.query(
-            `SELECT hr.*, j.competicao_id
+            `SELECT hr.*, j.competicao_id,
+                    a1.nome AS vencedor_anterior_nome,
+                    a2.nome AS vencedor_novo_nome
              FROM historico_resultados hr
              INNER JOIN jogos j ON j.id = hr.jogo_id
+             LEFT JOIN atletas a1 ON a1.id = hr.vencedor_anterior_id
+             LEFT JOIN atletas a2 ON a2.id = hr.vencedor_novo_id
              ${whereClause}
              ORDER BY hr.created_at DESC`,
             params
@@ -24,9 +28,13 @@ class HistoricoDAO {
 
     async findResultadoById(id) {
         const [rows] = await pool.query(
-            `SELECT hr.*, j.competicao_id
+            `SELECT hr.*, j.competicao_id,
+                    a1.nome AS vencedor_anterior_nome,
+                    a2.nome AS vencedor_novo_nome
              FROM historico_resultados hr
              INNER JOIN jogos j ON j.id = hr.jogo_id
+             LEFT JOIN atletas a1 ON a1.id = hr.vencedor_anterior_id
+             LEFT JOIN atletas a2 ON a2.id = hr.vencedor_novo_id
              WHERE hr.id = ?`,
             [id]
         );

@@ -1,4 +1,4 @@
-# Spingpong API
+# Sping-Pong API
 
 API REST em Node.js + Express + MySQL para gestao de usuarios administradores, atletas, competicoes, inscricoes, jogos e historicos de rating/resultado.
 

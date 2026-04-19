@@ -13,7 +13,7 @@ const historicosRoutes = require('./historicosRoutes');
 router.get('/', (req, res) => {
     res.json({
         success: true,
-        message: 'API Spingpong - Gestao de atletas, competicoes, jogos e ranking',
+        message: 'API SpingPong - Gestao de atletas, competicoes, jogos e ranking',
         version: '2.0.0',
         endpoints: {
             auth: '/api/auth',

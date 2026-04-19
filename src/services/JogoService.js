@@ -65,9 +65,55 @@ class JogoService {
         const allElims = await JogoDAO.findEliminatoriasByCompeticao(competicaoId);
         if (!allElims.length) return;
 
+        // IMPORTANTE: No SPING_OPEN, cada nível (A/B/C/D) tem sua própria FINAL.
+        // Preciso contar pontos apenas para atletas que finalizaram sua FINAL específica,
+        // não para todos os eliminatórios. Agrupar por categoria/nível.
+
         const finished = allElims.filter((m) => (m.status === 'FINALIZADO' || m.status === 'W_O') && m.vencedor_id);
         if (!finished.length) return;
 
+        // Agrupar por nível extraído da fase
+        const finishedByLevel = new Map();
+
+        for (const match of finished) {
+            const faseUpper = String(match.fase || '').toUpperCase();
+            let level = '';
+
+            if (faseUpper.includes('NIVEL_A')) level = 'A';
+            else if (faseUpper.includes('NIVEL_B')) level = 'B';
+            else if (faseUpper.includes('NIVEL_C')) level = 'C';
+            else if (faseUpper.includes('NIVEL_D')) level = 'D';
+
+            if (!finishedByLevel.has(level)) {
+                finishedByLevel.set(level, []);
+            }
+            finishedByLevel.get(level).push(match);
+        }
+
+        // Verificar se TODOS os níveis estão finalizados (para SPING_OPEN)
+        const hasOpenLevels = finishedByLevel.has('A') || finishedByLevel.has('B') ||
+                             finishedByLevel.has('C') || finishedByLevel.has('D');
+
+        // Se é SPING_OPEN, só contar pontos quando TODOS os níveis estão finalizados
+        if (hasOpenLevels) {
+            const levelA = finishedByLevel.get('A') || [];
+            const levelB = finishedByLevel.get('B') || [];
+            const levelC = finishedByLevel.get('C') || [];
+            const levelD = finishedByLevel.get('D') || [];
+
+            const allLevelsHaveFinal =
+                levelA.some(m => m.fase.toUpperCase().includes('FINAL')) &&
+                levelB.some(m => m.fase.toUpperCase().includes('FINAL')) &&
+                levelC.some(m => m.fase.toUpperCase().includes('FINAL')) &&
+                levelD.some(m => m.fase.toUpperCase().includes('FINAL'));
+
+            // Se faltam níveis, não processa ainda
+            if (!allLevelsHaveFinal) {
+                return;
+            }
+        }
+
+        // Processar pontos apenas para jogos finalizados que chegaram à FINAL
         const pointsByAthlete = new Map();
         const addPoints = (athleteId, points) => {
             if (!athleteId || points <= 0) return;

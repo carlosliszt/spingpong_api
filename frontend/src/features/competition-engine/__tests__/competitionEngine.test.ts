@@ -25,12 +25,12 @@ describe('competition engine', () => {
 
   it('should split SPING_OPEN levels A/B/C/D', () => {
     const standingsByGroup: Record<string, GroupStanding[]> = {
-      G1: [
-        { grupo_id: 'G1', atleta_id: 1, vitorias: 4, derrotas: 0, saldo_sets: 8, saldo_pontos: 20 },
-        { grupo_id: 'G1', atleta_id: 2, vitorias: 3, derrotas: 1, saldo_sets: 5, saldo_pontos: 10 },
-        { grupo_id: 'G1', atleta_id: 3, vitorias: 2, derrotas: 2, saldo_sets: 1, saldo_pontos: 0 },
-        { grupo_id: 'G1', atleta_id: 4, vitorias: 1, derrotas: 3, saldo_sets: -3, saldo_pontos: -8 },
-        { grupo_id: 'G1', atleta_id: 5, vitorias: 0, derrotas: 4, saldo_sets: -7, saldo_pontos: -18 }
+      'G01': [
+        { grupo_id: 'G01', atleta_id: 1, vitorias: 4, derrotas: 0, saldo_sets: 8, saldo_pontos: 20 },
+        { grupo_id: 'G01', atleta_id: 2, vitorias: 3, derrotas: 1, saldo_sets: 5, saldo_pontos: 10 },
+        { grupo_id: 'G01', atleta_id: 3, vitorias: 2, derrotas: 2, saldo_sets: 1, saldo_pontos: 0 },
+        { grupo_id: 'G01', atleta_id: 4, vitorias: 1, derrotas: 3, saldo_sets: -3, saldo_pontos: -8 },
+        { grupo_id: 'G01', atleta_id: 5, vitorias: 0, derrotas: 4, saldo_sets: -7, saldo_pontos: -18 }
       ]
     };
 

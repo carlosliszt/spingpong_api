@@ -4,26 +4,28 @@ const Jogo = require('../models/Jogo');
 class JogoDAO {
     async findAll() {
         const [rows] = await pool.query(
-            `SELECT j.*, c.nome AS competicao_nome, aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
+            `SELECT j.*, c.nome AS competicao_nome, 
+                    aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
                     av.nome AS vencedor_nome
              FROM jogos j
-             INNER JOIN competicoes c ON c.id = j.competicao_id
-             INNER JOIN atletas aa ON aa.id = j.atleta_a_id
-             INNER JOIN atletas ab ON ab.id = j.atleta_b_id
+             LEFT JOIN competicoes c ON c.id = j.competicao_id
+             LEFT JOIN atletas aa ON aa.id = j.atleta_a_id
+             LEFT JOIN atletas ab ON ab.id = j.atleta_b_id
              LEFT JOIN atletas av ON av.id = j.vencedor_id
-             ORDER BY j.created_at DESC`
+             ORDER BY j.id ASC`
         );
         return rows.map((row) => new Jogo(row));
     }
 
     async findById(id) {
         const [rows] = await pool.query(
-            `SELECT j.*, c.nome AS competicao_nome, aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
+            `SELECT j.*, c.nome AS competicao_nome, 
+                    aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
                     av.nome AS vencedor_nome
              FROM jogos j
-             INNER JOIN competicoes c ON c.id = j.competicao_id
-             INNER JOIN atletas aa ON aa.id = j.atleta_a_id
-             INNER JOIN atletas ab ON ab.id = j.atleta_b_id
+             LEFT JOIN competicoes c ON c.id = j.competicao_id
+             LEFT JOIN atletas aa ON aa.id = j.atleta_a_id
+             LEFT JOIN atletas ab ON ab.id = j.atleta_b_id
              LEFT JOIN atletas av ON av.id = j.vencedor_id
              WHERE j.id = ?`,
             [id]
@@ -33,12 +35,13 @@ class JogoDAO {
 
     async findByCompeticao(competicaoId) {
         const [rows] = await pool.query(
-            `SELECT j.*, c.nome AS competicao_nome, aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
+            `SELECT j.*, c.nome AS competicao_nome, 
+                    aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome,
                     av.nome AS vencedor_nome
              FROM jogos j
-             INNER JOIN competicoes c ON c.id = j.competicao_id
-             INNER JOIN atletas aa ON aa.id = j.atleta_a_id
-             INNER JOIN atletas ab ON ab.id = j.atleta_b_id
+             LEFT JOIN competicoes c ON c.id = j.competicao_id
+             LEFT JOIN atletas aa ON aa.id = j.atleta_a_id
+             LEFT JOIN atletas ab ON ab.id = j.atleta_b_id
              LEFT JOIN atletas av ON av.id = j.vencedor_id
              WHERE j.competicao_id = ?
              ORDER BY j.fase ASC, COALESCE(j.rodada, 0) ASC, j.id ASC`,
@@ -72,8 +75,8 @@ class JogoDAO {
         const [rows] = await pool.query(
             `SELECT j.*, aa.nome AS atleta_a_nome, ab.nome AS atleta_b_nome, av.nome AS vencedor_nome
              FROM jogos j
-             INNER JOIN atletas aa ON aa.id = j.atleta_a_id
-             INNER JOIN atletas ab ON ab.id = j.atleta_b_id
+             LEFT JOIN atletas aa ON aa.id = j.atleta_a_id
+             LEFT JOIN atletas ab ON ab.id = j.atleta_b_id
              LEFT JOIN atletas av ON av.id = j.vencedor_id
              WHERE j.competicao_id = ? AND fase NOT LIKE 'GRUPO_%'
              ORDER BY j.fase ASC, COALESCE(j.rodada, 0) ASC, j.id ASC`,

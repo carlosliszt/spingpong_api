@@ -32,7 +32,7 @@ const atletaValidator = [
 
     body('ranking_posicao')
         .optional({ nullable: true })
-        .isInt({ min: 1 }).withMessage('Ranking posicao deve ser um inteiro positivo')
+        .isInt({ min: 0 }).withMessage('Ranking posicao deve ser um inteiro positivo')
 ];
 
 module.exports = atletaValidator;

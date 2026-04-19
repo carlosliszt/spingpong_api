@@ -27,13 +27,16 @@ export function exportGroupGamesPdf(args: {
 
   const sections = groups
     .map((group, index) => {
-      const athleteIds = new Set(group.atletas.map((a) => a.id));
+      // Filtrar jogos por FASE (GRUPO_G01, GRUPO_G02, etc.) em vez de by atletas
+      // Isso garante que pegamos TODOS os jogos do grupo, não apenas os que matcheiam os IDs locais
       const groupMatches = matches.filter(
-        (m) =>
-          String(m.fase || '').toUpperCase().includes('GRUPO') &&
-          athleteIds.has(m.atleta_a_id) &&
-          athleteIds.has(m.atleta_b_id)
+        (m) => {
+          const faseUpper = String(m.fase || '').toUpperCase();
+          const groupIdFromPhase = group.id.toUpperCase();
+          return faseUpper.includes(`GRUPO_${groupIdFromPhase}`);
+        }
       );
+
       const standings = standingsByGroup[group.id] ?? [];
 
       const standingsRows = standings.length

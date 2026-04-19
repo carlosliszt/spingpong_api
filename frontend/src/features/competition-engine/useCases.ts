@@ -26,8 +26,8 @@ export function snakeGroupIndexes(groupsCount: number, totalSlots: number): numb
 export function balanceGroupsByRating(athletes: Athlete[], groupsCount: number): SeededGroup[] {
   const sorted = [...athletes].sort((a, b) => b.rating_atual - a.rating_atual);
   const groups: SeededGroup[] = Array.from({ length: groupsCount }, (_, i) => ({
-    id: `G${i + 1}`,
-    nome: `Grupo ${i + 1}`,
+    id: `G${String(i + 1).padStart(2, '0')}`,
+    nome: `Grupo ${String(i + 1).padStart(2, '0')}`,
     atletas: []
   }));
 

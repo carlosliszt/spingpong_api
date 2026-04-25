@@ -4,6 +4,7 @@ const InscricaoCompeticaoDAO = require('../dao/InscricaoCompeticaoDAO');
 const AtletaDAO = require('../dao/AtletaDAO');
 const JogoDAO = require('../dao/JogoDAO');
 const SetJogoDAO = require('../dao/SetJogoDAO');
+const SpingOpenConfigDAO = require('../dao/SpingOpenConfigDAO');
 const httpError = require('../utils/httpError');
 
 function toGroupCode(index) {
@@ -164,7 +165,12 @@ class CompeticaoService {
         const competition = await this.getById(competitionId);
         const athletes = await this._resolveParticipants(competition, athleteIds);
 
-        const maxByGroup = competition.tipo === 'SPING_OPEN' ? 5 : 4;
+        let maxByGroup = 4;
+        if (competition.tipo === 'SPING_OPEN') {
+            const config = await SpingOpenConfigDAO.findActive();
+            maxByGroup = config?.atletas_por_grupo || 5;
+        }
+
         const groupsCount = Math.max(1, Math.ceil(athletes.length / maxByGroup));
         const groups = Array.from({ length: groupsCount }, (_, i) => ({
             id: `G${toGroupCode(i)}`,
@@ -180,7 +186,12 @@ class CompeticaoService {
 
         return {
             competicao_id: competitionId,
-            grupos: groups
+            grupos: groups,
+            config: {
+                tipo: competition.tipo,
+                atletas_por_grupo: maxByGroup,
+                grupos_total: groupsCount
+            }
         };
     }
 
@@ -383,14 +394,27 @@ class CompeticaoService {
         const phasesToCreate = [];
 
         if (competition.tipo === 'SPING_OPEN') {
+            const config = await SpingOpenConfigDAO.findActive();
+            if (!config) {
+                throw httpError('Nenhuma configuração SPING_OPEN ativa disponível', 400);
+            }
+
             const levels = { A: [], B: [], C: [], D: [] };
 
             Object.values(standingsByGroup).forEach((standing) => {
-                if (standing[0]) levels.A.push(standing[0].atleta_id);
-                if (standing[1]) levels.A.push(standing[1].atleta_id);
-                if (standing[2]) levels.B.push(standing[2].atleta_id);
-                if (standing[3]) levels.C.push(standing[3].atleta_id);
-                if (standing[4]) levels.D.push(standing[4].atleta_id);
+                // Usar as posições configuradas para cada nível
+                config.posicoes_nivel_a?.forEach((pos) => {
+                    if (standing[pos - 1]) levels.A.push(standing[pos - 1].atleta_id);
+                });
+                config.posicoes_nivel_b?.forEach((pos) => {
+                    if (standing[pos - 1]) levels.B.push(standing[pos - 1].atleta_id);
+                });
+                config.posicoes_nivel_c?.forEach((pos) => {
+                    if (standing[pos - 1]) levels.C.push(standing[pos - 1].atleta_id);
+                });
+                config.posicoes_nivel_d?.forEach((pos) => {
+                    if (standing[pos - 1]) levels.D.push(standing[pos - 1].atleta_id);
+                });
             });
 
             for (const [level, athleteIds] of Object.entries(levels)) {

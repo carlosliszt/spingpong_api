@@ -8,6 +8,7 @@ const competicoesRoutes = require('./competicoesRoutes');
 const inscricoesRoutes = require('./inscricoesRoutes');
 const jogosRoutes = require('./jogosRoutes');
 const historicosRoutes = require('./historicosRoutes');
+const spingOpenConfigRoutes = require('./spingOpenConfigRoutes');
 
 // root
 router.get('/', (req, res) => {
@@ -22,7 +23,8 @@ router.get('/', (req, res) => {
             competicoes: '/api/competicoes',
             inscricoes: '/api/inscricoes',
             jogos: '/api/jogos',
-            historicos: '/api/historicos'
+            historicos: '/api/historicos',
+            'sping-open-config': '/api/sping-open-config'
         }
     });
 });
@@ -35,5 +37,6 @@ router.use('/competicoes', competicoesRoutes);
 router.use('/inscricoes', inscricoesRoutes);
 router.use('/jogos', jogosRoutes);
 router.use('/historicos', historicosRoutes);
+router.use('/sping-open-config', spingOpenConfigRoutes);
 
 module.exports = router;

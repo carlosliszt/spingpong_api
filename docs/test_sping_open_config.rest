@@ -1,0 +1,151 @@
+@baseUrl = http://localhost:3000
+@token = seu_token_jwt_aqui
+
+### 1. LISTAR todas as configurações
+GET {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+
+### 2. OBTER configuração padrão
+GET {{baseUrl}}/api/sping-open-config/default
+Authorization: Bearer {{token}}
+
+### 3. OBTER configuração ativa
+GET {{baseUrl}}/api/sping-open-config/active
+Authorization: Bearer {{token}}
+
+### 4. OBTER configuração por ID
+GET {{baseUrl}}/api/sping-open-config/1
+Authorization: Bearer {{token}}
+
+### 5. CRIAR nova configuração (4 atletas/grupo)
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Grupos de 4 Atletas",
+  "descricao": "Configuração para grupos menores com 4 atletas cada",
+  "atletas_por_grupo": 4,
+  "posicoes_nivel_a": "1,2",
+  "posicoes_nivel_b": "3",
+  "posicoes_nivel_c": "",
+  "posicoes_nivel_d": "",
+  "ativo": true,
+  "padrao": false
+}
+
+### 6. CRIAR nova configuração (6 atletas/grupo)
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Grupos de 6 Atletas",
+  "descricao": "Todos os 6 atletas avançam para diferentes níveis",
+  "atletas_por_grupo": 6,
+  "posicoes_nivel_a": "1",
+  "posicoes_nivel_b": "2,3",
+  "posicoes_nivel_c": "4,5",
+  "posicoes_nivel_d": "6",
+  "ativo": true,
+  "padrao": false
+}
+
+### 7. ATUALIZAR configuração (mudar para padrão)
+PUT {{baseUrl}}/api/sping-open-config/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "padrao": true,
+  "ativo": true
+}
+
+### 8. ATUALIZAR configuração (desativar)
+PUT {{baseUrl}}/api/sping-open-config/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "ativo": false
+}
+
+### 9. DELETAR configuração
+DELETE {{baseUrl}}/api/sping-open-config/2
+Authorization: Bearer {{token}}
+
+### 10. TESTAR com gerar grupos (usando nova config)
+POST {{baseUrl}}/api/competicoes/1/gerar-grupos-balanceados
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "competicao_id": 1
+}
+
+### 11. TESTAR com gerar mata-mata (usando nova config)
+POST {{baseUrl}}/api/competicoes/1/gerar-mata-mata
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "competicao_id": 1
+}
+
+### 12. OBTER bracket (verificar distribuição)
+GET {{baseUrl}}/api/competicoes/1/bracket
+Authorization: Bearer {{token}}
+
+
+### EXEMPLOS DE ERROS ESPERADOS:
+
+### Erro 1: Nome vazio
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "",
+  "atletas_por_grupo": 5,
+  "posicoes_nivel_a": "1,2"
+}
+
+### Erro 2: Atletas fora do intervalo
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Inválido",
+  "atletas_por_grupo": 20,
+  "posicoes_nivel_a": "1,2"
+}
+
+### Erro 3: Posição duplicada
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Inválido",
+  "atletas_por_grupo": 5,
+  "posicoes_nivel_a": "1,2",
+  "posicoes_nivel_b": "2"
+}
+
+### Erro 4: Posição acima do máximo
+POST {{baseUrl}}/api/sping-open-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Inválido",
+  "atletas_por_grupo": 4,
+  "posicoes_nivel_a": "1,2",
+  "posicoes_nivel_b": "5"
+}
+
+### Erro 5: Config não encontrada
+GET {{baseUrl}}/api/sping-open-config/999
+Authorization: Bearer {{token}}
+

@@ -6,7 +6,7 @@ import { balanceGroupsByRating } from '@/features/competition-engine/useCases';
 import { AdvancementSimulator } from '@/features/competitions/components/AdvancementSimulator';
 import { GroupObservationBoard } from '@/features/competitions/components/GroupObservationBoard';
 import { exportGroupGamesPdf } from '@/features/competitions/utils/exportGroupGamesPdf';
-import { Button, Card, Section, Badge, Alert } from '@/shared/components/ui';
+import { Button, Card, Badge, Alert } from '@/shared/components/ui';
 import { useFeedback } from '@/shared/hooks';
 import type { Athlete, GroupStanding } from '@/shared/types/domain';
 
@@ -27,27 +27,95 @@ export function CompetitionGroupsPage() {
     [competitions.data, competitionId]
   );
 
+  const openConfig = useQuery({
+    queryKey: ['sping-open-config-active', 'groups', competitionId],
+    enabled: competition?.tipo === 'SPING_OPEN',
+    queryFn: async () => {
+      try {
+        return await services.getActiveSpingOpenConfig();
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    }
+  });
+
   const athletesById = useMemo(
     () => new Map((athletes.data ?? []).map((a) => [a.id, a])),
     [athletes.data]
   );
 
   const participants = useMemo(() => {
-    const regAthletes = (registrations.data ?? [])
+    return (registrations.data ?? [])
       .filter((r) => r.competicao_id === competitionId)
       .map((r) => athletesById.get(r.atleta_id))
       .filter((a): a is Athlete => Boolean(a));
-
-    return regAthletes;
   }, [registrations.data, competitionId, athletesById]);
 
-  const groupsCount = useMemo(() => {
-    const total = participants.length;
-    const maxByGroup = competition?.tipo === 'SPING_OPEN' ? 5 : 4;
-    return Math.max(1, Math.ceil(total / maxByGroup));
-  }, [participants.length, competition?.tipo]);
+  const groupMatches = useMemo(
+    () =>
+      (matches.data ?? []).filter(
+        (m) => m.competicao_id === competitionId && m.fase.toUpperCase().includes('GRUPO')
+      ),
+    [matches.data, competitionId]
+  );
 
-  const groups = useMemo(() => balanceGroupsByRating(participants, groupsCount), [participants, groupsCount]);
+  const groupsFromMatches = useMemo(() => {
+    if (!groupMatches.length) {
+      return [];
+    }
+
+    const map = new Map<string, Set<number>>();
+
+    groupMatches.forEach((match) => {
+      const rawCode = String(match.fase).replace(/^GRUPO_/, '');
+      if (!map.has(rawCode)) {
+        map.set(rawCode, new Set());
+      }
+
+      map.get(rawCode)!.add(Number(match.atleta_a_id));
+      map.get(rawCode)!.add(Number(match.atleta_b_id));
+    });
+
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([code, athleteIds], index) => ({
+        id: code,
+        nome: `Grupo ${String(code).replace(/^G/, '')}`,
+        atletas: [...athleteIds]
+          .map((athleteId) => athletesById.get(athleteId))
+          .filter((athlete): athlete is Athlete => Boolean(athlete))
+          .sort((a, b) => Number(b.rating_atual) - Number(a.rating_atual)),
+        ordem: index + 1
+      }));
+  }, [groupMatches, athletesById]);
+
+  const fallbackGroupsCount = useMemo(() => {
+    const total = participants.length;
+    const maxByGroup = competition?.tipo === 'SPING_OPEN'
+      ? Number(openConfig.data?.atletas_por_grupo || 5)
+      : 4;
+    return Math.max(1, Math.ceil(total / maxByGroup));
+  }, [participants.length, competition?.tipo, openConfig.data?.atletas_por_grupo]);
+
+  const openLevelPositions = useMemo(
+    () => ({
+      A: openConfig.data?.posicoes_nivel_a || [1, 2],
+      B: openConfig.data?.posicoes_nivel_b || [3],
+      C: openConfig.data?.posicoes_nivel_c || [4],
+      D: openConfig.data?.posicoes_nivel_d || [5]
+    }),
+    [openConfig.data]
+  );
+
+  const groups = useMemo(
+    () => (groupsFromMatches.length ? groupsFromMatches : balanceGroupsByRating(participants, fallbackGroupsCount)),
+    [groupsFromMatches, participants, fallbackGroupsCount]
+  );
+
+  const groupsCount = groups.length;
 
   const standingsQueries = useQueries({
     queries: groups.map((g) => ({
@@ -64,13 +132,6 @@ export function CompetitionGroupsPage() {
     return map;
   }, [groups, standingsQueries]);
 
-  const groupMatches = useMemo(
-    () =>
-      (matches.data ?? []).filter(
-        (m) => m.competicao_id === competitionId && m.fase.toUpperCase().includes('GRUPO')
-      ),
-    [matches.data, competitionId]
-  );
 
   const allRoundsFinished =
     groupMatches.length > 0 && groupMatches.every((m) => FINISHED_STATUS.has(m.status));
@@ -154,7 +215,11 @@ export function CompetitionGroupsPage() {
 
       {/* Advancement Simulator */}
       <Card>
-        <AdvancementSimulator standingsByGroup={standingsByGroup} athletes={participants} />
+        <AdvancementSimulator
+          standingsByGroup={standingsByGroup}
+          athletes={participants}
+          levelPositions={openLevelPositions}
+        />
       </Card>
     </div>
   );

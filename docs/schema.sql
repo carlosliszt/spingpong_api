@@ -1,9 +1,3 @@
--- =========================================================
--- Schema: Gestão de Atletas, Ranking/Rating e Competições
--- Banco alvo: MySQL 8+
--- =========================================================
-
--- Opcional: criar database
 CREATE DATABASE spingpong CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE spingpong;
 

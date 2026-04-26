@@ -11,7 +11,7 @@ interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const alertIcons: Record<AlertType, string> = {
-  primary: '🔵',
+  primary: 'ℹ️',
   success: '✓',
   warning: '⚠️',
   danger: '✕'
@@ -26,18 +26,21 @@ export function Alert({
   ...props
 }: AlertProps) {
   const alertClass = `alert-${type}`;
+  const role = type === 'danger' || type === 'warning' ? 'alert' : 'status';
+  const live = type === 'danger' || type === 'warning' ? 'assertive' : 'polite';
 
   return (
-    <div className={clsx(alertClass, className)} {...props}>
-      <span className="flex-shrink-0 text-lg">{alertIcons[type]}</span>
-      <div className="flex-1">
-        {title && <p className="font-semibold">{title}</p>}
-        <p>{children}</p>
+    <div className={clsx(alertClass, className)} role={role} aria-live={live} {...props}>
+      <span className="alert-icon" aria-hidden="true">{alertIcons[type]}</span>
+      <div className="alert-content">
+        {title && <p className="alert-title">{title}</p>}
+        <div className="alert-body">{children}</div>
       </div>
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
-          className="flex-shrink-0 text-lg hover:opacity-70"
+          className="alert-close"
           aria-label="Fechar alerta"
         >
           ✕

@@ -30,7 +30,8 @@ const navGroups = [
     items: [
       { to: '/ranking', label: '🏆 Ranking & Rating' },
       { to: '/historico', label: '📋 Histórico' },
-      { to: '/configuracoes', label: '⚙️ Configurações' }
+      { to: '/configuracoes', label: '⚙️ Configurações' },
+      { to: '/configuracoes/sping-open', label: '🧩 Config SPING_OPEN' }
     ]
   }
 ] as const;

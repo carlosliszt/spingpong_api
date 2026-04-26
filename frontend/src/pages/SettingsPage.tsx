@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Section, Button, Alert } from '@/shared/components/ui';
 import { useFeedback } from '@/shared/hooks';
 
@@ -75,6 +76,17 @@ export function SettingsPage() {
         <p className="text-xs text-neutral-600 text-center">
           💡 <strong>Dica:</strong> Os parâmetros são salvos no armazenamento local do seu navegador
         </p>
+      </Card>
+
+      <Card>
+        <Section
+          title="🧩 SPING_OPEN"
+          subtitle="Gerencie as configurações oficiais de grupos e níveis usadas pelo backend"
+        >
+          <Link to="/configuracoes/sping-open" className="btn btn-primary inline-flex">
+            Abrir Configuração SPING_OPEN
+          </Link>
+        </Section>
       </Card>
     </div>
   );

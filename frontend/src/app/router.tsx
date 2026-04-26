@@ -19,6 +19,7 @@ import { MatchResultsViewPage } from '@/pages/MatchResultsViewPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { RankingPage } from '@/pages/RankingPage';
+import { SpingOpenConfigPage } from '@/pages/SpingOpenConfigPage';
 
 function Protected() {
   const token = useAuthStore((s) => s.token);
@@ -50,7 +51,8 @@ export const router = createBrowserRouter([
        { path: 'competicoes/:id/resultados/consulta', element: <MatchResultsViewPage /> },
        { path: 'historico', element: <HistoryPage /> },
        { path: 'ranking', element: <RankingPage /> },
-       { path: 'configuracoes', element: <SettingsPage /> }
+       { path: 'configuracoes', element: <SettingsPage /> },
+       { path: 'configuracoes/sping-open', element: <SpingOpenConfigPage /> }
     ]
   }
 ]);

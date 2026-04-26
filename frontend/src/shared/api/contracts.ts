@@ -8,8 +8,27 @@ import type {
   Match,
   MatchSet,
   RatingHistory,
-  ResultHistory
+  ResultHistory,
+  SpingOpenConfig
 } from '../types/domain';
+
+type SpingOpenConfigPayload = {
+  nome?: string;
+  descricao?: string | null;
+  atletas_por_grupo?: number;
+  posicoes_nivel_a?: string | number[];
+  posicoes_nivel_b?: string | number[];
+  posicoes_nivel_c?: string | number[];
+  posicoes_nivel_d?: string | number[];
+  ativo?: boolean | number;
+  padrao?: boolean | number;
+};
+
+type ManualGroupPayload = {
+  id?: string;
+  nome?: string;
+  athleteIds: number[];
+};
 
 export interface ApiServices {
   getUsers(): Promise<AdminUser[]>;
@@ -33,7 +52,7 @@ export interface ApiServices {
   deleteRegistration(id: number): Promise<void>;
 
   generateBalancedGroups(payload: { competitionId: number; athleteIds?: number[] }): Promise<unknown>;
-  generateGroupMatches(payload: { competitionId: number }): Promise<unknown>;
+  generateGroupMatches(payload: { competitionId: number; groups?: ManualGroupPayload[] }): Promise<unknown>;
   finalizeGroups(payload: { competitionId: number }): Promise<unknown>;
   generateKnockout(payload: { competitionId: number }): Promise<unknown>;
 
@@ -60,5 +79,13 @@ export interface ApiServices {
   createRatingHistory(payload: Partial<RatingHistory>): Promise<RatingHistory>;
   updateRatingHistory(id: number, payload: Partial<RatingHistory>): Promise<RatingHistory>;
   deleteRatingHistory(id: number): Promise<void>;
+
+  getSpingOpenConfigs(): Promise<SpingOpenConfig[]>;
+  getSpingOpenConfigById(id: number): Promise<SpingOpenConfig>;
+  getDefaultSpingOpenConfig(): Promise<SpingOpenConfig>;
+  getActiveSpingOpenConfig(): Promise<SpingOpenConfig>;
+  createSpingOpenConfig(payload: SpingOpenConfigPayload): Promise<SpingOpenConfig>;
+  updateSpingOpenConfig(id: number, payload: SpingOpenConfigPayload): Promise<SpingOpenConfig>;
+  deleteSpingOpenConfig(id: number): Promise<void>;
 }
 

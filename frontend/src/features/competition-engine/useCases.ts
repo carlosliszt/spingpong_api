@@ -1,6 +1,13 @@
 import type { Athlete, BracketEntry, BracketMatch, GroupStanding } from '@/shared/types/domain';
 import type { OpenLevelsMap, SeededGroup } from './types';
 
+type OpenLevelPositions = {
+  A: number[];
+  B: number[];
+  C: number[];
+  D: number[];
+};
+
 function nextPowerOfTwo(n: number) {
   let p = 1;
   while (p < n) p *= 2;
@@ -37,7 +44,11 @@ export function balanceGroupsByRating(athletes: Athlete[], groupsCount: number):
   return groups;
 }
 
-export function splitOpenLevels(standingsByGroup: Record<string, GroupStanding[]>, athletesById: Record<number, Athlete>): OpenLevelsMap {
+export function splitOpenLevels(
+  standingsByGroup: Record<string, GroupStanding[]>,
+  athletesById: Record<number, Athlete>,
+  levelPositions: OpenLevelPositions = { A: [1, 2], B: [3], C: [4], D: [5] }
+): OpenLevelsMap {
   const levels: OpenLevelsMap = { A: [], B: [], C: [], D: [] };
 
   Object.values(standingsByGroup).forEach((standing) => {
@@ -47,17 +58,20 @@ export function splitOpenLevels(standingsByGroup: Record<string, GroupStanding[]
       return b.saldo_pontos - a.saldo_pontos;
     });
 
-    const first = sorted[0] ? athletesById[sorted[0].atleta_id] : undefined;
-    const second = sorted[1] ? athletesById[sorted[1].atleta_id] : undefined;
-    const third = sorted[2] ? athletesById[sorted[2].atleta_id] : undefined;
-    const fourth = sorted[3] ? athletesById[sorted[3].atleta_id] : undefined;
-    const fifth = sorted[4] ? athletesById[sorted[4].atleta_id] : undefined;
+    const pushLevelByPositions = (level: keyof OpenLevelsMap, positions: number[]) => {
+      positions.forEach((position) => {
+        const row = sorted[position - 1];
+        const athlete = row ? athletesById[row.atleta_id] : undefined;
+        if (athlete) {
+          levels[level].push(athlete);
+        }
+      });
+    };
 
-    if (first) levels.A.push(first);
-    if (second) levels.A.push(second);
-    if (third) levels.B.push(third);
-    if (fourth) levels.C.push(fourth);
-    if (fifth) levels.D.push(fifth);
+    pushLevelByPositions('A', levelPositions.A || []);
+    pushLevelByPositions('B', levelPositions.B || []);
+    pushLevelByPositions('C', levelPositions.C || []);
+    pushLevelByPositions('D', levelPositions.D || []);
   });
 
   return levels;

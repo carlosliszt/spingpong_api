@@ -6,7 +6,6 @@ import { balanceGroupsByRating, splitOpenLevels } from '@/features/competition-e
 import { OpenLevelsTabs } from '@/features/competitions/components/OpenLevelsTabs';
 import { Button, Card, Section } from '@/shared/components/ui';
 import type { Athlete, GroupStanding } from '@/shared/types/domain';
-import type { OpenLevel } from '@/features/competition-engine/types';
 
 export function OpenLevelsPage() {
   const { id } = useParams();
@@ -15,11 +14,27 @@ export function OpenLevelsPage() {
   const athletes = useQuery({ queryKey: ['athletes'], queryFn: services.getAthletes });
   const competitions = useQuery({ queryKey: ['competitions'], queryFn: services.getCompetitions });
   const registrations = useQuery({ queryKey: ['registrations'], queryFn: services.getRegistrations });
+  const matches = useQuery({ queryKey: ['matches'], queryFn: services.getMatches });
 
   const competition = useMemo(
     () => (competitions.data ?? []).find((c) => c.id === competitionId),
     [competitions.data, competitionId]
   );
+
+  const openConfig = useQuery({
+    queryKey: ['sping-open-config-active', 'open-levels', competitionId],
+    enabled: competition?.tipo === 'SPING_OPEN',
+    queryFn: async () => {
+      try {
+        return await services.getActiveSpingOpenConfig();
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    }
+  });
 
   const athletesById = useMemo(
     () => Object.fromEntries((athletes.data ?? []).map((a) => [a.id, a])),
@@ -35,8 +50,47 @@ export function OpenLevelsPage() {
     [registrations.data, competitionId, athletesById]
   );
 
-  const groupsCount = Math.max(1, Math.ceil(participants.length / 5));
-  const groups = useMemo(() => balanceGroupsByRating(participants, groupsCount), [participants, groupsCount]);
+  const groupMatches = useMemo(
+    () =>
+      (matches.data ?? []).filter(
+        (m) => m.competicao_id === competitionId && m.fase.toUpperCase().includes('GRUPO')
+      ),
+    [matches.data, competitionId]
+  );
+
+  const groupsFromMatches = useMemo(() => {
+    if (!groupMatches.length) {
+      return [];
+    }
+
+    const map = new Map<string, Set<number>>();
+
+    groupMatches.forEach((match) => {
+      const rawCode = String(match.fase).replace(/^GRUPO_/, '');
+      if (!map.has(rawCode)) {
+        map.set(rawCode, new Set());
+      }
+      map.get(rawCode)!.add(Number(match.atleta_a_id));
+      map.get(rawCode)!.add(Number(match.atleta_b_id));
+    });
+
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([code, athleteIds]) => ({
+        id: code,
+        nome: `Grupo ${String(code).replace(/^G/, '')}`,
+        atletas: [...athleteIds]
+          .map((athleteId) => athletesById[athleteId])
+          .filter((athlete): athlete is Athlete => Boolean(athlete))
+      }));
+  }, [groupMatches, athletesById]);
+
+  const maxByGroup = Number(openConfig.data?.atletas_por_grupo || 5);
+  const fallbackGroupsCount = Math.max(1, Math.ceil(participants.length / maxByGroup));
+  const groups = useMemo(
+    () => (groupsFromMatches.length ? groupsFromMatches : balanceGroupsByRating(participants, fallbackGroupsCount)),
+    [groupsFromMatches, participants, fallbackGroupsCount]
+  );
 
   const standingsQueries = useQueries({
     queries: groups.map((g) => ({
@@ -53,7 +107,12 @@ export function OpenLevelsPage() {
     return result;
   }, [groups, standingsQueries]);
 
-  const levels = splitOpenLevels(standingsByGroup, athletesById);
+  const levels = splitOpenLevels(standingsByGroup, athletesById, {
+    A: openConfig.data?.posicoes_nivel_a || [1, 2],
+    B: openConfig.data?.posicoes_nivel_b || [3],
+    C: openConfig.data?.posicoes_nivel_c || [4],
+    D: openConfig.data?.posicoes_nivel_d || [5]
+  });
 
   return (
     <div className="space-y-6">

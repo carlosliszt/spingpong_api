@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { services } from '@/shared/api/services';
 import { BalancedSeedingPanel } from '@/features/competitions/components/BalancedSeedingPanel';
-import { Button, Card, Section, Input, Select, Alert, Badge } from '@/shared/components/ui';
+import { Button, Card, Section, Input, Select, Alert } from '@/shared/components/ui';
 import { useFeedback } from '@/shared/hooks';
 
 const schema = z.object({
@@ -34,6 +34,21 @@ export function CompetitionWizardPage() {
     defaultValues: { tipo: 'SPING_FOODS' }
   });
 
+  const openConfigQuery = useQuery({
+    queryKey: ['sping-open-config-active', 'wizard'],
+    enabled: watch('tipo') === 'SPING_OPEN',
+    queryFn: async () => {
+      try {
+        return await services.getActiveSpingOpenConfig();
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    }
+  });
+
   const competitionMutation = useMutation({
     mutationFn: services.createCompetition,
     onError: (error: any) => showError(error?.response?.data?.message || 'Erro ao criar competição')
@@ -42,14 +57,6 @@ export function CompetitionWizardPage() {
   const finalizeMutation = useMutation({
     mutationFn: async () => {
       if (!competitionId) throw new Error('Competicao nao criada');
-
-      for (const athleteId of selectedAthleteIds) {
-        await services.createRegistration({
-          competicao_id: competitionId,
-          atleta_id: athleteId,
-          status: 'INSCRITO'
-        });
-      }
 
       await services.generateGroupMatches({ competitionId });
       return true;
@@ -62,17 +69,70 @@ export function CompetitionWizardPage() {
     onError: (error: any) => showError(error?.response?.data?.message || 'Falha ao finalizar')
   });
 
+  const previewSyncMutation = useMutation({
+    mutationFn: async () => {
+      if (!competitionId) throw new Error('Competicao nao criada');
+
+      const currentRegistrations = await services.getRegistrations();
+      const competitionRegistrations = currentRegistrations.filter((row) => row.competicao_id === competitionId);
+
+      const selectedSet = new Set(selectedAthleteIds);
+      const currentSet = new Set(competitionRegistrations.map((row) => row.atleta_id));
+
+      const toCreate = selectedAthleteIds.filter((athleteId) => !currentSet.has(athleteId));
+      const toDelete = competitionRegistrations.filter((row) => !selectedSet.has(row.atleta_id));
+
+      for (const athleteId of toCreate) {
+        await services.createRegistration({
+          competicao_id: competitionId,
+          atleta_id: athleteId,
+          status: 'INSCRITO'
+        });
+      }
+
+      for (const registration of toDelete) {
+        await services.deleteRegistration(registration.id);
+      }
+
+      return true;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['registrations'] });
+      setStep(3);
+    },
+    onError: (error: any) => showError(error?.response?.data?.erro || error?.response?.data?.message || 'Falha ao sincronizar inscritos')
+  });
+
   const selectedAthletes = useMemo(
     () => (athletesQuery.data ?? []).filter((a) => selectedAthleteIds.includes(a.id)),
     [athletesQuery.data, selectedAthleteIds]
   );
 
-  const groupsCount =
-    watch('tipo') === 'SPING_OPEN'
-      ? Math.max(1, Math.ceil(selectedAthletes.length / 5))
-      : Math.max(1, Math.ceil(selectedAthletes.length / 4));
+  const allAthleteIds = useMemo(
+    () => (athletesQuery.data ?? []).map((a) => a.id),
+    [athletesQuery.data]
+  );
 
-  const maxGroupSize = watch('tipo') === 'SPING_OPEN' ? 5 : 4;
+  const selectedCount = selectedAthleteIds.filter((id) => allAthleteIds.includes(id)).length;
+  const isAllSelected = allAthleteIds.length > 0 && selectedCount === allAthleteIds.length;
+  const isPartiallySelected = selectedCount > 0 && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    setSelectedAthleteIds((prev) => {
+      if (allAthleteIds.length === 0) {
+        return prev;
+      }
+
+      return isAllSelected ? [] : allAthleteIds;
+    });
+  };
+
+  const maxGroupSize =
+    watch('tipo') === 'SPING_OPEN'
+      ? Number(openConfigQuery.data?.atletas_por_grupo || 5)
+      : 4;
+
+  const groupsCount = Math.max(1, Math.ceil(selectedAthletes.length / maxGroupSize));
 
   return (
     <div className="space-y-6">
@@ -134,7 +194,7 @@ export function CompetitionWizardPage() {
                 ]}
                 error={errors.tipo?.message}
                 help={watch('tipo') === 'SPING_OPEN'
-                  ? 'Máx 5 atletas por grupo'
+                  ? `Máx ${maxGroupSize} atletas por grupo`
                   : 'Máx 4 atletas por grupo'}
                 {...register('tipo')}
               />
@@ -191,6 +251,26 @@ export function CompetitionWizardPage() {
               <div className="text-center py-8 text-neutral-600">Nenhum atleta cadastrado</div>
             ) : (
               <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                  <p className="text-sm text-neutral-700">
+                    <strong>{selectedCount}</strong> de <strong>{allAthleteIds.length}</strong> atletas selecionados
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={toggleSelectAll}>
+                      {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                    </Button>
+                    {isPartiallySelected && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedAthleteIds([])}
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {athletesQuery.data?.map((a) => (
                     <label
@@ -227,7 +307,7 @@ export function CompetitionWizardPage() {
                       <div key={i} className="text-center p-2 bg-white rounded border border-neutral-200">
                         <p className="text-xs font-semibold text-neutral-600">Grupo {String(i + 1).padStart(2, '0')}</p>
                         <p className="text-lg font-bold text-brand-600">~{Math.ceil(selectedAthleteIds.length / groupsCount)}</p>
-                        <p className="text-xs text-neutral-500">atletas</p>
+                        <p className="text-xs text-neutral-500">atletas (máx {maxGroupSize})</p>
                       </div>
                     ))}
                   </div>
@@ -243,8 +323,9 @@ export function CompetitionWizardPage() {
                   </Button>
                   <Button
                     variant="primary"
-                    onClick={() => setStep(3)}
+                    onClick={() => previewSyncMutation.mutate()}
                     disabled={selectedAthleteIds.length === 0}
+                    isLoading={previewSyncMutation.isPending}
                     className="flex-1"
                   >
                     Próximo: Preview Balanceado →

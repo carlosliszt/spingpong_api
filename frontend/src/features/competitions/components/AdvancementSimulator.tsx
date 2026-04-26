@@ -1,9 +1,24 @@
 import type { GroupStanding, Athlete } from '@/shared/types/domain';
 import { splitOpenLevels } from '@/features/competition-engine/useCases';
 
-export function AdvancementSimulator({ standingsByGroup, athletes }: { standingsByGroup: Record<string, GroupStanding[]>; athletes: Athlete[] }) {
+type LevelPositions = {
+  A: number[];
+  B: number[];
+  C: number[];
+  D: number[];
+};
+
+export function AdvancementSimulator({
+  standingsByGroup,
+  athletes,
+  levelPositions
+}: {
+  standingsByGroup: Record<string, GroupStanding[]>;
+  athletes: Athlete[];
+  levelPositions?: LevelPositions;
+}) {
   const athletesById = Object.fromEntries(athletes.map((a) => [a.id, a]));
-  const levels = splitOpenLevels(standingsByGroup, athletesById);
+  const levels = splitOpenLevels(standingsByGroup, athletesById, levelPositions);
 
   return (
     <section className="card" aria-label="Simulador de avancos">

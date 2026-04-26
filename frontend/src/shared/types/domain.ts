@@ -54,6 +54,21 @@ export type CompetitionRegistration = {
   atleta_nome?: string;
 };
 
+export type SpingOpenConfig = {
+  id: number;
+  nome: string;
+  descricao?: string | null;
+  atletas_por_grupo: number;
+  posicoes_nivel_a: number[];
+  posicoes_nivel_b: number[];
+  posicoes_nivel_c: number[];
+  posicoes_nivel_d: number[];
+  ativo: number;
+  padrao: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type MatchSet = {
   id?: number;
   jogo_id: number;

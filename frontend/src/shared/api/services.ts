@@ -10,10 +10,49 @@ import type {
   Match,
   MatchSet,
   RatingHistory,
-  ResultHistory
+  ResultHistory,
+  SpingOpenConfig
 } from '../types/domain';
 
 type ApiResponse<T> = { success: boolean; data: T };
+
+const unwrapResponse = <T>(payload: ApiResponse<T> | T): T => {
+  if (payload && typeof payload === 'object' && 'data' in (payload as any) && (payload as any).data !== undefined) {
+    return (payload as ApiResponse<T>).data;
+  }
+  return payload as T;
+};
+
+const parsePositions = (positions: unknown): number[] => {
+  if (Array.isArray(positions)) {
+    return positions.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0).sort((a, b) => a - b);
+  }
+
+  if (typeof positions === 'string') {
+    return positions
+      .split(',')
+      .map((item) => Number(item.trim()))
+      .filter((item) => Number.isFinite(item) && item > 0)
+      .sort((a, b) => a - b);
+  }
+
+  return [];
+};
+
+const normalizeSpingOpenConfig = (raw: any): SpingOpenConfig => ({
+  id: Number(raw.id),
+  nome: String(raw.nome ?? ''),
+  descricao: raw.descricao ?? null,
+  atletas_por_grupo: Number(raw.atletas_por_grupo ?? 5),
+  posicoes_nivel_a: parsePositions(raw.posicoes_nivel_a),
+  posicoes_nivel_b: parsePositions(raw.posicoes_nivel_b),
+  posicoes_nivel_c: parsePositions(raw.posicoes_nivel_c),
+  posicoes_nivel_d: parsePositions(raw.posicoes_nivel_d),
+  ativo: Number(raw.ativo ?? 0),
+  padrao: Number(raw.padrao ?? 0),
+  created_at: raw.created_at,
+  updated_at: raw.updated_at
+});
 
 export const services: ApiServices = {
   async getUsers() {
@@ -211,5 +250,48 @@ export const services: ApiServices = {
   },
   async deleteRatingHistory(id) {
     await http.delete(`/historicos/rating/${id}`);
+  },
+
+  async getSpingOpenConfigs() {
+    const { data } = await http.get<ApiResponse<any[]> | any[]>('/sping-open-config');
+    const rows = unwrapResponse<any[]>(data) ?? [];
+    return rows.map(normalizeSpingOpenConfig);
+  },
+  async getSpingOpenConfigById(id) {
+    const { data } = await http.get<ApiResponse<any> | any>(`/sping-open-config/${id}`);
+    return normalizeSpingOpenConfig(unwrapResponse<any>(data));
+  },
+  async getDefaultSpingOpenConfig() {
+    const { data } = await http.get<ApiResponse<any> | any>('/sping-open-config/default');
+    return normalizeSpingOpenConfig(unwrapResponse<any>(data));
+  },
+  async getActiveSpingOpenConfig() {
+    const { data } = await http.get<ApiResponse<any> | any>('/sping-open-config/active');
+    return normalizeSpingOpenConfig(unwrapResponse<any>(data));
+  },
+  async createSpingOpenConfig(payload) {
+    const normalizedPayload = {
+      ...payload,
+      posicoes_nivel_a: Array.isArray(payload.posicoes_nivel_a) ? payload.posicoes_nivel_a.join(',') : payload.posicoes_nivel_a,
+      posicoes_nivel_b: Array.isArray(payload.posicoes_nivel_b) ? payload.posicoes_nivel_b.join(',') : payload.posicoes_nivel_b,
+      posicoes_nivel_c: Array.isArray(payload.posicoes_nivel_c) ? payload.posicoes_nivel_c.join(',') : payload.posicoes_nivel_c,
+      posicoes_nivel_d: Array.isArray(payload.posicoes_nivel_d) ? payload.posicoes_nivel_d.join(',') : payload.posicoes_nivel_d
+    };
+    const { data } = await http.post<ApiResponse<any> | any>('/sping-open-config', normalizedPayload);
+    return normalizeSpingOpenConfig(unwrapResponse<any>(data));
+  },
+  async updateSpingOpenConfig(id, payload) {
+    const normalizedPayload = {
+      ...payload,
+      posicoes_nivel_a: Array.isArray(payload.posicoes_nivel_a) ? payload.posicoes_nivel_a.join(',') : payload.posicoes_nivel_a,
+      posicoes_nivel_b: Array.isArray(payload.posicoes_nivel_b) ? payload.posicoes_nivel_b.join(',') : payload.posicoes_nivel_b,
+      posicoes_nivel_c: Array.isArray(payload.posicoes_nivel_c) ? payload.posicoes_nivel_c.join(',') : payload.posicoes_nivel_c,
+      posicoes_nivel_d: Array.isArray(payload.posicoes_nivel_d) ? payload.posicoes_nivel_d.join(',') : payload.posicoes_nivel_d
+    };
+    const { data } = await http.put<ApiResponse<any> | any>(`/sping-open-config/${id}`, normalizedPayload);
+    return normalizeSpingOpenConfig(unwrapResponse<any>(data));
+  },
+  async deleteSpingOpenConfig(id) {
+    await http.delete(`/sping-open-config/${id}`);
   }
 };

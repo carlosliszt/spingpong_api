@@ -1,7 +1,29 @@
 const db = require('../config/database');
 
 class SpingOpenConfigDAO {
+    async _normalizeActiveConfigs(preferredId = null) {
+        const [activeRows] = await db.query(
+            `SELECT id
+             FROM sping_open_config
+             WHERE ativo = 1
+             ORDER BY
+                CASE WHEN id = ? THEN 0 ELSE 1 END,
+                updated_at DESC,
+                created_at DESC,
+                id DESC`,
+            [preferredId || 0]
+        );
+
+        if (activeRows.length <= 1) {
+            return;
+        }
+
+        const keepId = preferredId || activeRows[0].id;
+        await db.query('UPDATE sping_open_config SET ativo = 0 WHERE ativo = 1 AND id <> ?', [keepId]);
+    }
+
     async findAll() {
+        await this._normalizeActiveConfigs();
         const [rows] = await db.query('SELECT * FROM sping_open_config ORDER BY created_at DESC');
         return rows;
     }
@@ -55,6 +77,10 @@ class SpingOpenConfigDAO {
                 padrao ? 1 : 0
             ]
         );
+
+        if (ativo !== false) {
+            await this._normalizeActiveConfigs(result.insertId);
+        }
 
         return this.findById(result.insertId);
     }
@@ -127,6 +153,10 @@ class SpingOpenConfigDAO {
         const query = `UPDATE sping_open_config SET ${updates.join(', ')} WHERE id = ?`;
         await db.query(query, values);
 
+        if (ativo !== undefined && Boolean(ativo)) {
+            await this._normalizeActiveConfigs(id);
+        }
+
         return this.findById(id);
     }
 
@@ -135,7 +165,11 @@ class SpingOpenConfigDAO {
         return result.affectedRows > 0;
     }
 
-    async parsePositions(positionString) {
+    parsePositions(positionString) {
+        if (!positionString || typeof positionString !== 'string') {
+            return [];
+        }
+
         return positionString
             .split(',')
             .map((p) => Number(p.trim()))

@@ -159,17 +159,136 @@ class CompeticaoService {
         return [...athletes].sort((a, b) => Number(b.rating_atual) - Number(a.rating_atual));
     }
 
+    async _getMaxByGroup(competition) {
+        if (competition.tipo === 'SPING_OPEN') {
+            const config = await SpingOpenConfigDAO.findActive();
+            return Number(config?.atletas_por_grupo) || 5;
+        }
+
+        return 4;
+    }
+
+    _normalizeGroupCode(rawId, index) {
+        let code = String(rawId || `G${toGroupCode(index)}`).toUpperCase().trim();
+
+        if (code.startsWith('GRUPO_')) {
+            code = code.replace(/^GRUPO_/, '');
+        }
+
+        code = code.replace(/[^A-Z0-9]/g, '');
+
+        if (!code) {
+            code = `G${toGroupCode(index)}`;
+        }
+
+        if (!code.startsWith('G')) {
+            code = `G${code}`;
+        }
+
+        return code;
+    }
+
+    async _resolveManualGroups(competition, groupsPayload) {
+        if (!Array.isArray(groupsPayload) || !groupsPayload.length) {
+            throw httpError('Informe ao menos um grupo manual para gerar os jogos', 400);
+        }
+
+        const maxByGroup = await this._getMaxByGroup(competition);
+        const inscricoes = await InscricaoCompeticaoDAO.findByCompeticaoId(competition.id);
+
+        if (!inscricoes.length) {
+            throw httpError('Nao ha atletas inscritos para a competicao', 400);
+        }
+
+        const athletesById = new Map(
+            inscricoes.map((row) => [
+                Number(row.atleta_id),
+                {
+                    id: Number(row.atleta_id),
+                    nome: row.atleta_nome,
+                    rating_atual: Number(row.rating_atual),
+                    ranking_posicao: row.ranking_posicao
+                }
+            ])
+        );
+
+        const registeredIds = new Set([...athletesById.keys()]);
+        const usedAthleteIds = new Set();
+        const usedGroupCodes = new Set();
+        const resolvedGroups = [];
+
+        groupsPayload.forEach((group, index) => {
+            const code = this._normalizeGroupCode(group?.id, index);
+            if (usedGroupCodes.has(code)) {
+                throw httpError(`Grupo ${code} informado mais de uma vez`, 400);
+            }
+
+            usedGroupCodes.add(code);
+
+            const rawIds = Array.isArray(group?.athleteIds)
+                ? group.athleteIds
+                : Array.isArray(group?.atletas)
+                    ? group.atletas.map((atleta) => (typeof atleta === 'object' ? atleta?.id : atleta))
+                    : [];
+
+            const athleteIds = [...new Set(rawIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+
+            if (!athleteIds.length) {
+                throw httpError(`Grupo ${code} sem atletas`, 400);
+            }
+
+            if (athleteIds.length < 2) {
+                throw httpError(`Grupo ${code} precisa de no minimo 2 atletas`, 400);
+            }
+
+            if (athleteIds.length > maxByGroup) {
+                throw httpError(`Grupo ${code} excede o limite de ${maxByGroup} atletas`, 400);
+            }
+
+            const athletes = athleteIds.map((athleteId) => {
+                if (!registeredIds.has(athleteId)) {
+                    throw httpError(`Atleta ${athleteId} nao esta inscrito nesta competicao`, 400);
+                }
+
+                if (usedAthleteIds.has(athleteId)) {
+                    throw httpError(`Atleta ${athleteId} foi informado em mais de um grupo`, 400);
+                }
+
+                usedAthleteIds.add(athleteId);
+                return athletesById.get(athleteId);
+            });
+
+            resolvedGroups.push({
+                id: code,
+                nome: group?.nome || `Grupo ${code.replace(/^G/, '')}`,
+                ordem: index + 1,
+                atletas: athletes
+            });
+        });
+
+        if (usedAthleteIds.size !== registeredIds.size) {
+            const missingIds = [...registeredIds].filter((id) => !usedAthleteIds.has(id));
+            throw httpError(`Atletas sem grupo manual: ${missingIds.join(', ')}`, 400);
+        }
+
+        return {
+            competicao_id: competition.id,
+            grupos: resolvedGroups,
+            config: {
+                tipo: competition.tipo,
+                atletas_por_grupo: maxByGroup,
+                grupos_total: resolvedGroups.length,
+                manual: true
+            }
+        };
+    }
+
     async gerarGruposBalanceados(payload) {
         const competitionId = Number(payload.competitionId || payload.competicao_id);
         const athleteIds = Array.isArray(payload.athleteIds) ? payload.athleteIds.map(Number) : [];
         const competition = await this.getById(competitionId);
         const athletes = await this._resolveParticipants(competition, athleteIds);
-
-        let maxByGroup = 4;
-        if (competition.tipo === 'SPING_OPEN') {
-            const config = await SpingOpenConfigDAO.findActive();
-            maxByGroup = config?.atletas_por_grupo || 5;
-        }
+        const maxByGroup = await this._getMaxByGroup(competition);
 
         const groupsCount = Math.max(1, Math.ceil(athletes.length / maxByGroup));
         const groups = Array.from({ length: groupsCount }, (_, i) => ({
@@ -197,7 +316,11 @@ class CompeticaoService {
 
     async gerarJogosGrupo(payload) {
         const competitionId = Number(payload.competitionId || payload.competicao_id);
-        const generatedGroups = await this.gerarGruposBalanceados({ competitionId });
+        const competition = await this.getById(competitionId);
+
+        const generatedGroups = Array.isArray(payload.groups) && payload.groups.length
+            ? await this._resolveManualGroups(competition, payload.groups)
+            : await this.gerarGruposBalanceados({ competitionId });
 
         const existingGroupMatches = (await JogoDAO.findByCompeticao(competitionId)).filter((j) =>
             String(j.fase).startsWith('GRUPO_')

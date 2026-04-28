@@ -63,6 +63,30 @@ export function exportGroupGamesPdf(args: {
             )
             .join('');
 
+      const isGroupFinalized = groupMatches.length > 0 && groupMatches.every(
+        (m) => (String(m.status || '').toUpperCase() === 'FINALIZADO' || String(m.status || '').toUpperCase() === 'W_O')
+      );
+
+      const renderMatchSets = (game: Match) => {
+        // If group is finalized and we have sets, show actual set scores.
+        if (isGroupFinalized) {
+          if (game.status && String(game.status).toUpperCase() === 'W_O') {
+            return 'W/O';
+          }
+
+          const sets = Array.isArray(game.sets) ? [...game.sets] : [];
+          if (sets.length) {
+            sets.sort((a, b) => (Number(a.numero_set) || 0) - (Number(b.numero_set) || 0));
+            const aPoints = sets.map((s) => (s.pontos_atleta_a ?? s.pontos_a ?? '')).join(', ');
+            const bPoints = sets.map((s) => (s.pontos_atleta_b ?? s.pontos_b ?? '')).join(', ');
+            return `${aPoints} x ${bPoints}`;
+          }
+        }
+
+        // Default: empty line for manual filling
+        return '___, ___, ___, ___, ___ x ___, ___, ___, ___, ___';
+      };
+
       const gameRows = groupMatches
         .map(
           (game, idx) => `
@@ -70,7 +94,7 @@ export function exportGroupGamesPdf(args: {
               <td>${idx + 1}</td>
               <td>
                 ${escapeHtml(String(game.atleta_a_nome ?? game.atleta_a_id))}
-                &nbsp;&nbsp;___, ___, ___, ___, ___&nbsp;&nbsp;x&nbsp;&nbsp;___, ___, ___, ___, ___&nbsp;&nbsp;
+                &nbsp;&nbsp;${escapeHtml(String(renderMatchSets(game)))}&nbsp;&nbsp;
                 ${escapeHtml(String(game.atleta_b_nome ?? game.atleta_b_id))}
               </td>
             </tr>`
@@ -89,14 +113,14 @@ export function exportGroupGamesPdf(args: {
             <tbody>${standingsRows}</tbody>
           </table>
 
-          <h2>Jogos do grupo (melhor de 5)</h2>
+          <h2>Jogos do grupo</h2>
           <table>
             <thead>
               <tr>
-                <th>Jogo</th><th>Linha para preenchimento (melhor de 5)</th>
+                <th>Jogo</th><th>Linha para preenchimento</th>
               </tr>
             </thead>
-            <tbody>${gameRows || '<tr><td colspan="2">Sem jogos gerados para este grupo.</td></tr>'}</tbody>
+            <tbody>${gameRows || '<tr><td colspan="2">Sem jogos registrados para este grupo.</td></tr>'}</tbody>
           </table>
         </section>`;
     })

@@ -16,10 +16,10 @@ function toInt(value: string | undefined) {
 }
 
 function detectLevelRank(phase: string) {
-  if (phase.includes('NIVEL_A') || phase.includes('LEVEL_A')) return 1;
-  if (phase.includes('NIVEL_B') || phase.includes('LEVEL_B')) return 2;
-  if (phase.includes('NIVEL_C') || phase.includes('LEVEL_C')) return 3;
-  if (phase.includes('NIVEL_D') || phase.includes('LEVEL_D')) return 4;
+  if (phase.includes('OPEN_A') || phase.includes('NIVEL_A') || phase.includes('LEVEL_A')) return 1;
+  if (phase.includes('OPEN_B') || phase.includes('NIVEL_B') || phase.includes('LEVEL_B')) return 2;
+  if (phase.includes('OPEN_C') || phase.includes('NIVEL_C') || phase.includes('LEVEL_C')) return 3;
+  if (phase.includes('OPEN_D') || phase.includes('NIVEL_D') || phase.includes('LEVEL_D')) return 4;
   return 9;
 }
 
@@ -70,6 +70,18 @@ export function compareMatchesByPhaseRound(a: Match, b: Match) {
 export function formatPhaseLabel(rawPhase?: string | null) {
   const meta = getPhaseMeta(rawPhase);
   if (meta.canonical === 'GRUPO' && meta.groupOrder > 0) return `GRUPO ${meta.groupOrder}`;
+
+  const phase = String(rawPhase ?? '').toUpperCase();
+  const openMatch = phase.match(/OPEN_([ABCD])_?(.*)/);
+  if (openMatch?.[1]) {
+    const suffix = openMatch[2] || '';
+    const normalizedSuffix = suffix.includes('OITAVAS') ? 'OITAVAS DE FINAL'
+      : suffix.includes('QUARTAS') ? 'QUARTAS DE FINAL'
+      : suffix.includes('SEMI') ? 'SEMIFINAL'
+      : suffix.includes('FINAL') ? 'FINAL'
+      : suffix;
+    return `CATEGORIA ${openMatch[1]}${normalizedSuffix ? ` - ${normalizedSuffix}` : ''}`;
+  }
 
   if (meta.canonical === 'GRUPO') return 'GRUPO';
   if (meta.canonical === 'OITAVAS') return 'OITAVAS DE FINAL';

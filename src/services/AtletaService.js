@@ -15,6 +15,11 @@ class AtletaService {
     }
 
     async create(data) {
+        // normalize empty strings to null for optional fields
+        ['data_nascimento', 'sexo', 'email', 'telefone'].forEach((k) => {
+            if (data[k] !== undefined && data[k] === '') data[k] = null;
+        });
+
         const existingNome = await AtletaDAO.findByNome(data.nome);
         if (existingNome) {
             throw httpError('Ja existe um atleta com este nome', 409);
@@ -32,6 +37,11 @@ class AtletaService {
 
     async update(id, data) {
         const atleta = await this.getById(id);
+
+        // normalize empty strings to null so SQL stores NULL instead of empty string
+        ['data_nascimento', 'sexo', 'email', 'telefone'].forEach((k) => {
+            if (data[k] !== undefined && data[k] === '') data[k] = null;
+        });
 
         if (data.email && data.email !== atleta.email) {
             const existingEmail = await AtletaDAO.findByEmail(data.email);

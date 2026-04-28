@@ -3,6 +3,11 @@ const { body } = require('express-validator');
 const STATUS = ['AGENDADO', 'EM_ANDAMENTO', 'FINALIZADO', 'W_O', 'CANCELADO'];
 
 const jogoValidator = [
+    body('bye')
+        .optional()
+        .isBoolean()
+        .withMessage('bye invalido'),
+
     body('competicao_id')
         .notEmpty().withMessage('Competicao e obrigatoria')
         .isInt({ min: 1 }).withMessage('competicao_id invalido'),
@@ -19,7 +24,9 @@ const jogoValidator = [
         .notEmpty().withMessage('atleta_a_id e obrigatorio')
         .isInt({ min: 1 }).withMessage('atleta_a_id invalido'),
 
+    // atleta_b_id is required except for explicit BYE matches or when match is a W_O (walkover)
     body('atleta_b_id')
+        .if((value, { req }) => !req.body?.bye && req.body?.status !== 'W_O')
         .notEmpty().withMessage('atleta_b_id e obrigatorio')
         .isInt({ min: 1 }).withMessage('atleta_b_id invalido'),
 

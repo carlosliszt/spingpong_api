@@ -3,7 +3,6 @@ import { http } from './http';
 import type {
   AdminUser,
   Athlete,
-  BracketMatch,
   Competition,
   CompetitionRegistration,
   GroupStanding,
@@ -191,6 +190,10 @@ export const services: ApiServices = {
   },
   async registerMatchResult(payload: { jogoId: number; sets: MatchSet[]; vencedor_id?: number }) {
     const { data } = await http.post<ApiResponse<Match>>('/jogos/registrar-resultado-jogo', payload);
+    return data.data;
+  },
+  async updateMatchResult(payload: { jogoId: number; sets: MatchSet[]; vencedor_id?: number }) {
+    const { data } = await http.put<ApiResponse<Match>>('/jogos/atualizar-resultado-jogo', payload);
     return data.data;
   },
 

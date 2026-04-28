@@ -59,11 +59,12 @@ export interface ApiServices {
   getGroupStanding(competitionId: number, groupId: string): Promise<GroupStanding[]>;
   getBracket(competitionId: number): Promise<BracketMatch[]>;
 
-  getMatches(): Promise<Match[]>;
-  createMatch(payload: Partial<Match>): Promise<Match>;
-  updateMatch(id: number, payload: Partial<Match>): Promise<Match>;
-  deleteMatch(id: number): Promise<void>;
-  registerMatchResult(payload: { jogoId: number; sets: MatchSet[]; vencedor_id?: number }): Promise<Match>;
+   getMatches(): Promise<Match[]>;
+   createMatch(payload: Partial<Match>): Promise<Match>;
+   updateMatch(id: number, payload: Partial<Match>): Promise<Match>;
+   deleteMatch(id: number): Promise<void>;
+   registerMatchResult(payload: { jogoId: number; sets: MatchSet[]; vencedor_id?: number }): Promise<Match>;
+   updateMatchResult(payload: { jogoId: number; sets: MatchSet[]; vencedor_id?: number }): Promise<Match>;
 
   getSetsByMatch(jogoId: number): Promise<MatchSet[]>;
   createSet(payload: Partial<MatchSet>): Promise<MatchSet>;

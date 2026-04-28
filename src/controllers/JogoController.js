@@ -54,6 +54,15 @@ class JogoController {
             next(error);
         }
     }
+
+    async atualizarResultado(req, res, next) {
+        try {
+            const jogo = await JogoService.atualizarResultadoJogo(req.body);
+            res.status(200).json({ success: true, message: 'Resultado atualizado com sucesso', data: jogo });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new JogoController();

@@ -14,6 +14,7 @@ router.get('/:jogoId/sets', SetJogoController.getByJogo);
 
 router.post('/', authMiddleware, jogoValidator, validate, JogoController.create);
 router.post('/registrar-resultado-jogo', authMiddleware, registrarResultadoValidator, validate, JogoController.registrarResultado);
+router.put('/atualizar-resultado-jogo', authMiddleware, registrarResultadoValidator, validate, JogoController.atualizarResultado);
 router.put('/:id', authMiddleware, JogoController.update);
 router.delete('/:id', authMiddleware, JogoController.delete);
 

@@ -16,10 +16,15 @@ import { OpenLevelsPage } from '@/pages/OpenLevelsPage';
 import { MatchesPage } from '@/pages/MatchesPage';
 import { MatchResultPage } from '@/pages/MatchResultPage';
 import { MatchResultsViewPage } from '@/pages/MatchResultsViewPage';
+import { EditMatchResultPage } from '@/pages/EditMatchResultPage';
+import { InlineEditMatchResultPage } from '@/pages/InlineEditMatchResultPage';
+import { AuditTrailPage } from '@/pages/AuditTrailPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { RankingPage } from '@/pages/RankingPage';
 import { SpingOpenConfigPage } from '@/pages/SpingOpenConfigPage';
+import ManualGroupsPage from '@/pages/ManualGroupsPage';
+import ManualKnockoutPage from '@/pages/ManualKnockoutPage';
 
 function Protected() {
   const token = useAuthStore((s) => s.token);
@@ -43,12 +48,17 @@ export const router = createBrowserRouter([
       { path: 'inscricoes', element: <RegistrationsPage /> },
       { path: 'competicoes/wizard', element: <CompetitionWizardPage /> },
       { path: 'competicoes/:id/grupos', element: <CompetitionGroupsPage /> },
+      { path: 'competicoes/:id/grupos/manual', element: <ManualGroupsPage /> },
       { path: 'competicoes/:id/mata-mata', element: <CompetitionKnockoutPage /> },
+      { path: 'competicoes/:id/mata-mata/manual', element: <ManualKnockoutPage /> },
       { path: 'competicoes/:id/open-levels', element: <OpenLevelsPage /> },
       { path: 'jogos', element: <MatchesPage /> },
-      { path: 'jogos/resultados', element: <MatchResultPage /> },
-      { path: 'competicoes/:id/resultados', element: <MatchResultPage /> },
-       { path: 'competicoes/:id/resultados/consulta', element: <MatchResultsViewPage /> },
+       { path: 'jogos/resultados', element: <MatchResultPage /> },
+       { path: 'competicoes/:id/resultados', element: <MatchResultPage /> },
+       { path: 'competicoes/:id/resultados/editar', element: <EditMatchResultPage /> },
+       { path: 'competicoes/:id/resultados/editar-inline', element: <InlineEditMatchResultPage /> },
+        { path: 'competicoes/:id/resultados/consulta', element: <MatchResultsViewPage /> },
+        { path: 'competicoes/:id/auditoria', element: <AuditTrailPage /> },
        { path: 'historico', element: <HistoryPage /> },
        { path: 'ranking', element: <RankingPage /> },
        { path: 'configuracoes', element: <SettingsPage /> },

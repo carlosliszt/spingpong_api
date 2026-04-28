@@ -403,6 +403,11 @@ export function CompetitionOperationsPage() {
                 📝 Inscrições
               </Button>
             </Link>
+            <Link to={`/competicoes/${competitionId}/grupos/manual`}>
+              <Button variant="secondary" isBlock>
+                🛠️ Montar Grupos Manual
+              </Button>
+            </Link>
             <Link to={`/competicoes/${competitionId}/grupos`}>
               <Button variant="secondary" isBlock>
                 📊 Ver Grupos
@@ -411,6 +416,16 @@ export function CompetitionOperationsPage() {
             <Link to={`/competicoes/${competitionId}/resultados`}>
               <Button variant="secondary" isBlock>
                 📋 Lançar Resultados
+              </Button>
+            </Link>
+            <Link to={`/competicoes/${competitionId}/resultados/editar`}>
+              <Button variant="secondary" isBlock>
+                ✏️ Editar Resultados
+              </Button>
+            </Link>
+            <Link to={`/competicoes/${competitionId}/resultados/editar-inline`}>
+              <Button variant="secondary" isBlock>
+                ⚡ Editar (Rápido)
               </Button>
             </Link>
             <Link to={`/competicoes/${competitionId}/resultados/consulta`}>
@@ -423,11 +438,21 @@ export function CompetitionOperationsPage() {
                 🏆 Ver Mata-Mata
               </Button>
             </Link>
-            <Link to={`/competicoes/${competitionId}/open-levels`}>
+            <Link to={`/competicoes/${competitionId}/mata-mata/manual`}>
               <Button variant="secondary" isBlock>
-                📈 Níveis Open
+                🛠️ Inserir Mata-mata Manual
               </Button>
             </Link>
+             <Link to={`/competicoes/${competitionId}/open-levels`}>
+               <Button variant="secondary" isBlock>
+                 📈 Níveis Open
+               </Button>
+             </Link>
+             <Link to={`/competicoes/${competitionId}/auditoria`}>
+               <Button variant="secondary" isBlock>
+                 📜 Auditoria
+               </Button>
+             </Link>
           </div>
         </Section>
       </Card>

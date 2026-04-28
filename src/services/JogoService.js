@@ -79,10 +79,10 @@ class JogoService {
             const faseUpper = String(match.fase || '').toUpperCase();
             let level = '';
 
-            if (faseUpper.includes('NIVEL_A')) level = 'A';
-            else if (faseUpper.includes('NIVEL_B')) level = 'B';
-            else if (faseUpper.includes('NIVEL_C')) level = 'C';
-            else if (faseUpper.includes('NIVEL_D')) level = 'D';
+            if (faseUpper.includes('OPEN_A') || faseUpper.includes('NIVEL_A')) level = 'A';
+            else if (faseUpper.includes('OPEN_B') || faseUpper.includes('NIVEL_B')) level = 'B';
+            else if (faseUpper.includes('OPEN_C') || faseUpper.includes('NIVEL_C')) level = 'C';
+            else if (faseUpper.includes('OPEN_D') || faseUpper.includes('NIVEL_D')) level = 'D';
 
             if (!finishedByLevel.has(level)) {
                 finishedByLevel.set(level, []);
@@ -256,9 +256,19 @@ class JogoService {
             throw httpError('Atleta A nao encontrado', 404);
         }
 
-        const atletaB = await AtletaDAO.findById(data.atleta_b_id);
-        if (!atletaB) {
-            throw httpError('Atleta B nao encontrado', 404);
+        // Allow missing atleta_b_id for explicit BYE matches or walkovers (W_O)
+        // If atleta_b_id is null/undefined and the payload indicates a BYE or W_O,
+        // skip the atleta B existence check. Otherwise, atleta B must exist.
+        if (data.atleta_b_id === undefined || data.atleta_b_id === null) {
+            const isBye = data.bye === true || data.status === 'W_O' || data.vencedor_id === data.atleta_a_id;
+            if (!isBye) {
+                throw httpError('Atleta B nao encontrado', 404);
+            }
+        } else {
+            const atletaB = await AtletaDAO.findById(data.atleta_b_id);
+            if (!atletaB) {
+                throw httpError('Atleta B nao encontrado', 404);
+            }
         }
 
         if (data.atleta_a_id === data.atleta_b_id) {
@@ -273,6 +283,35 @@ class JogoService {
     }
 
     async create(data) {
+        // Support creating BYE matches: when data.bye is true, only atleta_a is required
+        if (data && data.bye) {
+            const competicao = await CompeticaoDAO.findById(data.competicao_id);
+            if (!competicao) {
+                throw httpError('Competicao nao encontrada', 404);
+            }
+
+            const atletaA = await AtletaDAO.findById(data.atleta_a_id);
+            if (!atletaA) {
+                throw httpError('Atleta A nao encontrado', 404);
+            }
+
+            const payload = {
+                competicao_id: data.competicao_id,
+                fase: data.fase,
+                rodada: data.rodada ?? null,
+                atleta_a_id: data.atleta_a_id,
+                atleta_b_id: null,
+                vencedor_id: data.atleta_a_id,
+                status: data.status ?? 'W_O',
+                data_hora_prevista: data.data_hora_prevista ?? null,
+                data_hora_inicio: data.data_hora_inicio ?? null,
+                data_hora_fim: data.data_hora_fim ?? null,
+                observacoes: composeObservacoes(data.observacoes, [data.atleta_a_id])
+            };
+
+            return JogoDAO.create(payload);
+        }
+
         await this.validateReferences(data);
         return JogoDAO.create(data);
     }
@@ -314,6 +353,81 @@ class JogoService {
         if (jogo.status === 'FINALIZADO') {
             throw httpError('Este jogo ja foi finalizado', 409);
         }
+
+        let setsA = 0;
+        let setsB = 0;
+
+        const normalizedSets = setsPayload.map((set, index) => {
+            const pontosA = Number(set.pontos_a ?? set.pontos_atleta_a);
+            const pontosB = Number(set.pontos_b ?? set.pontos_atleta_b);
+
+            if (Number.isNaN(pontosA) || Number.isNaN(pontosB)) {
+                throw httpError('Pontos dos sets devem ser numericos', 400);
+            }
+
+            if (pontosA === pontosB) {
+                throw httpError('Sets empatados nao sao permitidos', 400);
+            }
+
+            let vencedorSetId = null;
+            if (pontosA > pontosB) {
+                setsA += 1;
+                vencedorSetId = jogo.atleta_a_id;
+            } else if (pontosB > pontosA) {
+                setsB += 1;
+                vencedorSetId = jogo.atleta_b_id;
+            }
+
+            return {
+                numero_set: Number(set.numero_set || index + 1),
+                pontos_atleta_a: pontosA,
+                pontos_atleta_b: pontosB,
+                vencedor_set_id: vencedorSetId
+            };
+        });
+
+        if (Math.max(setsA, setsB) !== 3 || normalizedSets.length < 3) {
+            throw httpError('Resultado invalido para melhor de 5: vencedor precisa ganhar 3 sets', 400);
+        }
+
+        let vencedorId = payload.vencedor_id ? Number(payload.vencedor_id) : null;
+        if (!vencedorId) {
+            vencedorId = setsA > setsB ? jogo.atleta_a_id : setsB > setsA ? jogo.atleta_b_id : null;
+        }
+
+        if (!vencedorId) {
+            throw httpError('Nao foi possivel determinar vencedor do jogo', 400);
+        }
+
+        await SetJogoDAO.replaceSetsForJogo(jogoId, normalizedSets);
+        const updated = await JogoDAO.update(jogoId, {
+            vencedor_id: vencedorId,
+            status: 'FINALIZADO'
+        });
+
+        if (!normalizePhase(jogo.fase).startsWith('GRUPO_')) {
+            await this._advanceKnockoutIfNeeded(jogo);
+        }
+
+        return {
+            ...updated,
+            sets: await SetJogoDAO.findAllByJogoId(jogoId)
+        };
+    }
+
+    async atualizarResultadoJogo(payload) {
+        const jogoId = Number(payload.jogoId || payload.jogo_id);
+        const setsPayload = Array.isArray(payload.sets) ? payload.sets : [];
+
+        if (!jogoId || !setsPayload.length) {
+            throw httpError('jogoId e sets sao obrigatorios', 400);
+        }
+
+        if (setsPayload.length > 5) {
+            throw httpError('Jogo melhor de 5 permite no maximo 5 sets', 400);
+        }
+
+        const jogo = await this.getById(jogoId);
 
         let setsA = 0;
         let setsB = 0;

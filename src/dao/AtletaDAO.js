@@ -58,7 +58,8 @@ class AtletaDAO {
         allowed.forEach((field) => {
             if (data[field] !== undefined) {
                 fields.push(`${field} = ?`);
-                values.push(data[field]);
+                // convert empty strings to null to avoid unique '' conflicts
+                values.push(data[field] === '' ? null : data[field]);
             }
         });
 

@@ -125,7 +125,7 @@ CREATE TABLE jogos (
                        rodada INT UNSIGNED NULL,
 
                        atleta_a_id BIGINT UNSIGNED NOT NULL,
-                       atleta_b_id BIGINT UNSIGNED NOT NULL,
+                       atleta_b_id BIGINT UNSIGNED NULL,
                        vencedor_id BIGINT UNSIGNED NULL,
 
                        status VARCHAR(20) NOT NULL DEFAULT 'AGENDADO',
@@ -152,7 +152,7 @@ CREATE TABLE jogos (
                        CONSTRAINT fk_jogo_vencedor FOREIGN KEY (vencedor_id) REFERENCES atletas(id),
 
                        CONSTRAINT chk_jogo_status CHECK (status IN ('AGENDADO', 'EM_ANDAMENTO', 'FINALIZADO', 'W_O', 'CANCELADO')),
-                       CONSTRAINT chk_jogo_atletas_diff CHECK (atleta_a_id <> atleta_b_id),
+                       CONSTRAINT chk_jogo_atletas_diff CHECK (atleta_b_id IS NULL OR atleta_a_id <> atleta_b_id),
                        CONSTRAINT chk_jogo_vencedor_valido CHECK (
                            vencedor_id IS NULL OR vencedor_id IN (atleta_a_id, atleta_b_id)
                            ),
@@ -398,7 +398,7 @@ BEGIN
 END IF;
 
 -- valida vencedor
-IF NEW.vencedor_id IS NULL OR NEW.vencedor_id NOT IN (NEW.atleta_a_id, NEW.atleta_b_id) THEN
+IF NEW.atleta_b_id IS NOT NULL AND (NEW.vencedor_id IS NULL OR NEW.vencedor_id NOT IN (NEW.atleta_a_id, NEW.atleta_b_id)) THEN
       SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Jogo FINALIZADO exige vencedor_id válido (atleta_a_id ou atleta_b_id).';
 END IF;
@@ -420,30 +420,38 @@ FROM atletas
 WHERE id = NEW.atleta_a_id
     FOR UPDATE;
 
-SELECT rating_atual INTO v_rb_old
-FROM atletas
-WHERE id = NEW.atleta_b_id
-    FOR UPDATE;
-
-SET v_diff = ABS(ROUND(v_ra_old - v_rb_old));
-
-    -- esperado/inseperado
-    IF (NEW.vencedor_id = NEW.atleta_a_id AND v_ra_old >= v_rb_old)
-       OR (NEW.vencedor_id = NEW.atleta_b_id AND v_rb_old >= v_ra_old) THEN
-      SET v_expected_win = 1;
+IF NEW.atleta_b_id IS NULL THEN
+      -- BYE: sem atualização de rating/estatísticas do oponente ausente
+      SET v_rb_old = NULL;
+      SET v_ra_new = v_ra_old;
+      SET v_rb_new = NULL;
+      SET v_v_points = 0;
+      SET v_l_points = 0;
 ELSE
-      SET v_expected_win = 0;
+      SELECT rating_atual INTO v_rb_old
+      FROM atletas
+      WHERE id = NEW.atleta_b_id
+          FOR UPDATE;
+
+      SET v_diff = ABS(ROUND(v_ra_old - v_rb_old));
+
+      -- esperado/inseperado
+      IF (NEW.vencedor_id = NEW.atleta_a_id AND v_ra_old >= v_rb_old)
+         OR (NEW.vencedor_id = NEW.atleta_b_id AND v_rb_old >= v_ra_old) THEN
+        SET v_expected_win = 1;
+ELSE
+        SET v_expected_win = 0;
 END IF;
 
-CALL sp_get_pontos_partida(v_diff, v_expected_win, v_v_points, v_l_points);
+      CALL sp_get_pontos_partida(v_diff, v_expected_win, v_v_points, v_l_points);
 
-SET v_v_points = v_v_points * v_peso;
-    SET v_l_points = v_l_points * v_peso;
+      SET v_v_points = v_v_points * v_peso;
+      SET v_l_points = v_l_points * v_peso;
 
-    -- aplica stats + rating
-    IF NEW.vencedor_id = NEW.atleta_a_id THEN
-      SET v_ra_new = v_ra_old + v_v_points;
-      SET v_rb_new = GREATEST(0, v_rb_old - v_l_points);
+      -- aplica stats + rating
+      IF NEW.vencedor_id = NEW.atleta_a_id THEN
+        SET v_ra_new = v_ra_old + v_v_points;
+        SET v_rb_new = GREATEST(0, v_rb_old - v_l_points);
 
 UPDATE atletas
 SET partidas_jogadas = partidas_jogadas + 1,
@@ -456,7 +464,7 @@ SET partidas_jogadas = partidas_jogadas + 1,
     derrotas = derrotas + 1,
     rating_atual = v_rb_new
 WHERE id = NEW.atleta_b_id;
-ELSE
+      ELSE
       SET v_rb_new = v_rb_old + v_v_points;
       SET v_ra_new = GREATEST(0, v_ra_old - v_l_points);
 
@@ -471,6 +479,7 @@ SET partidas_jogadas = partidas_jogadas + 1,
     vitorias = vitorias + 1,
     rating_atual = v_rb_new
 WHERE id = NEW.atleta_b_id;
+      END IF;
 END IF;
 
     -- histórico de rating (A)
